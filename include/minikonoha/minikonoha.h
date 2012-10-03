@@ -615,6 +615,9 @@ struct KonohaRuntimeVar {
 	KUtilsGrowingArray        classTable;
 	KUtilsHashMap            *longClassNameMapNN;
 	kmutex_t          *classTableMutex;
+	KonohaContext    *rootContext;
+	kArray           *childContextList;
+
 	/* system shared const */
 	kObject                  *constNull;
 	kBoolean                 *constTrue;
@@ -1455,6 +1458,7 @@ struct KonohaLibVar {
 
 	void            (*kArray_add)(KonohaContext*, kArray *, kAbstractObject *);
 	void            (*kArray_insert)(KonohaContext*, kArray *, size_t, kAbstractObject *);
+	void            (*kArray_remove)(KonohaContext*, kArray *,size_t);
 	void            (*kArray_clear)(KonohaContext*, kArray *, size_t);
 
 	kparamid_t      (*Kparamdom)(KonohaContext*, int, const kparamtype_t *);

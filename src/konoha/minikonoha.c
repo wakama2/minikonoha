@@ -153,6 +153,7 @@ static KonohaContextVar* new_KonohaContext(KonohaContext *kctx, const PlatformAp
 		newctx->share = kctx->share;
 		newctx->modshare = kctx->modshare;
 		newctx->modlocal = (KonohaModuleContext**)KCALLOC(sizeof(KonohaModuleContext*), KonohaModule_MAXSIZE);
+		kArray_add(kctx, kctx->share->childContextList, newctx);
 		MODGC_init(kctx, newctx);
 	}
 	KonohaStackRuntime_init(kctx, newctx, platApi->stacksize);
@@ -196,7 +197,11 @@ static void KonohaContext_reftrace(KonohaContext *kctx, KonohaContextVar *ctx)
 
 void KonohaContext_reftraceAll(KonohaContext *kctx)
 {
-	KonohaContext_reftrace(kctx, (KonohaContextVar*)kctx);
+	size_t i;
+	KonohaContext_reftrace(kctx, (KonohaContextVar*)kctx->share->rootContext);
+	for(i = 0; i < kArray_size(kctx->share->childContextList); i++) {
+		KonohaContext_reftrace(kctx, (KonohaContextVar*)kArray_get(kctx->share->childContextList, i));
+	}
 }
 
 static void KonohaContext_free(KonohaContext *kctx, KonohaContextVar *ctx)

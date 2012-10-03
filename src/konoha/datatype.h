@@ -365,6 +365,16 @@ static void kArray_insert(KonohaContext *kctx, kArray *o, size_t n, kObject *v)
 	}
 }
 
+static void kArray_remove(KonohaContext *kctx, kArray *o, size_t n)
+{
+	size_t asize = kArray_size(o);
+	struct _kAbstractArray *a = (struct _kAbstractArray*)o;
+	if(n < asize) {
+		memmove(a->a.objectItems+n, a->a.objectItems+n+1, sizeof(kObject*) * (asize-n-1));
+		a->a.bytesize = (asize-1) * sizeof(void*);
+	}
+}
+
 static void kArray_clear(KonohaContext *kctx, kArray *o, size_t n)
 {
 	DBG_ASSERT(IS_Array(o));
@@ -1061,6 +1071,7 @@ static void initKonohaLib(KonohaLibVar *l)
 	//l->Kconv  = conv;
 	l->kArray_add           = (typeof(l->kArray_add))kArray_add;
 	l->kArray_insert        = (typeof(l->kArray_insert))kArray_insert;
+	l->kArray_remove        = (typeof(l->kArray_remove))kArray_remove;
 	l->kArray_clear         = kArray_clear;
 	l->new_kMethod          = new_kMethod;
 	l->Kparamdom            = Kparamdom;
@@ -1090,6 +1101,8 @@ static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	KINITv(share->packageIdList, new_(StringArray, 8));
 	share->packageIdMapNN = KLIB Kmap_init(kctx, 0);
 	share->packageMapNO = KLIB Kmap_init(kctx, 0);
+	share->rootContext = kctx;
+	KINITv(share->childContextList, new_(Array, 0));
 
 	KINITv(share->symbolList, new_(StringArray, 32));
 	share->symbolMapNN = KLIB Kmap_init(kctx, 0);
@@ -1150,7 +1163,8 @@ static void KonohaRuntime_reftrace(KonohaContext *kctx, KonohaContextVar *ctx)
 		}
 	}
 	KLIB Kmap_each(kctx, share->packageMapNO, NULL, packageMap_reftrace);
-	BEGIN_REFTRACE(10);
+	BEGIN_REFTRACE(11);
+	KREFTRACEv(share->childContextList);
 	KREFTRACEv(share->constNull);
 	KREFTRACEv(share->constTrue);
 	KREFTRACEv(share->constFalse);
