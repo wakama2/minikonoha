@@ -156,6 +156,7 @@ static inline int setjmp_mingw(_JBTYPE* t)
 #ifndef K_USE_PTHREAD
 typedef void kmutex_t;
 typedef void kmutexattr_t;
+typedef void kmutex_cond_t;
 #define KInitLock(X)
 #define KInitRrcureiveLock(X)
 #define KLock(X)
@@ -617,6 +618,11 @@ struct KonohaRuntimeVar {
 	kmutex_t          *classTableMutex;
 	KonohaContext    *rootContext;
 	kArray           *childContextList;
+	kmutex_t *gclock;
+	kmutex_cond_t *gcStartCond;
+	kmutex_cond_t *gcEndCond;
+	int thread_sleepCount;
+	int thread_gcStopCount;
 
 	/* system shared const */
 	kObject                  *constNull;

@@ -1083,6 +1083,8 @@ static void initKonohaLib(KonohaLibVar *l)
 	l->KonohaClass_Generics = KonohaClass_Generics;
 }
 
+#include <pthread.h>//FIXME
+
 static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 {
 	KonohaRuntimeVar *share = (KonohaRuntimeVar*)KCALLOC(sizeof(KonohaRuntime), 1);
@@ -1127,6 +1129,15 @@ static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	PN_("sugar");     // PKG_sugar
 	defineDefaultKeywordSymbol(kctx);
 	initStructData(kctx);
+
+	share->thread_sleepCount = 0;
+	share->thread_gcStopCount = 0;
+	share->gclock = (kmutex_t *)KMALLOC(sizeof(pthread_mutex_t));
+	share->gcStartCond = (kmutex_cond_t *)KMALLOC(sizeof(pthread_cond_t));
+	share->gcEndCond = (kmutex_cond_t *)KMALLOC(sizeof(pthread_cond_t));
+	pthread_mutex_init(share->gclock, NULL);
+	pthread_cond_init(share->gcStartCond, NULL);
+	pthread_cond_init(share->gcEndCond, NULL);
 }
 
 static void constPoolMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)

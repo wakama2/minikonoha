@@ -1901,7 +1901,7 @@ static void bmgc_gc_sweep(KonohaContext *kctx, HeapManager *mng)
 	}
 }
 
-static void bitmapMarkingGC(KonohaContext *kctx, HeapManager *mng, enum gc_mode mode)
+static void bitmapMarkingGC_single(KonohaContext *kctx, HeapManager *mng, enum gc_mode mode)
 {
 	DBG_P("GC starting");
 	bmgc_gc_init(kctx, mng, mode);
@@ -1929,6 +1929,39 @@ static void bitmapMarkingGC(KonohaContext *kctx, HeapManager *mng, enum gc_mode 
 			global_gc_stat.gc_count, (heap_size/MB_), collected, marked);
 #endif
 	bitmap_reset(&((KonohaContextVar*)kctx)->safepoint, 0);
+}
+
+static void bitmapMarkingGC(KonohaContext *kctx, HeapManager *mng, enum gc_mode mode)
+{
+	KonohaRuntimeVar *share = (KonohaRuntimeVar *)kctx->share;
+	pthread_mutex_lock(share->gclock);
+	if(share->thread_gcStopCount == 0) {
+		share->thread_gcStopCount = 1;
+		// set safepoint flag to all thread
+		size_t i;
+		bitmap_set(&share->rootContext->safepoint, mode, 1);
+		for(i=0; i<kArray_size(share->childContextList); i++) {
+			KonohaContextVar *ctx = (KonohaContextVar *)share->childContextList->objectItems[i];
+			bitmap_set(&ctx->safepoint, mode, 1);
+		}
+		// wait all thread stop
+		while(share->thread_sleepCount + share->thread_gcStopCount != kArray_size(share->childContextList) + 1) {
+			pthread_cond_wait(share->gcStartCond, share->gclock);
+		}
+		bitmapMarkingGC_single(kctx, mng, mode);
+		pthread_cond_broadcast(share->gcEndCond);
+		share->thread_gcStopCount = 0;
+	} else {
+		share->thread_gcStopCount += 1;
+		bitmap_reset(&((KonohaContextVar*)kctx)->safepoint, 0);
+		// notify gc thread
+		if(share->thread_sleepCount + share->thread_gcStopCount != kArray_size(share->childContextList) + 1) {
+			pthread_cond_signal(share->gcStartCond);
+		}
+		// wait gc end
+		pthread_cond_wait(share->gcEndCond, share->gclock);
+	}
+	pthread_mutex_unlock(share->gclock);
 }
 
 /* ------------------------------------------------------------------------ */

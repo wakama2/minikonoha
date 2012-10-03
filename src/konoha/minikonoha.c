@@ -200,7 +200,7 @@ void KonohaContext_reftraceAll(KonohaContext *kctx)
 	size_t i;
 	KonohaContext_reftrace(kctx, (KonohaContextVar*)kctx->share->rootContext);
 	for(i = 0; i < kArray_size(kctx->share->childContextList); i++) {
-		KonohaContext_reftrace(kctx, (KonohaContextVar*)kArray_get(kctx->share->childContextList, i));
+		KonohaContext_reftrace(kctx, (KonohaContextVar*)kctx->share->childContextList->objectItems[i]);
 	}
 }
 
