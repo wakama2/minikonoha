@@ -104,10 +104,10 @@ static kbytes_t knh_bytes_mofflen(kbytes_t v, size_t moff, size_t mlen)
 #endif
 }
 
-#define _ALWAYS SPOL_POOL
-#define _NEVER  SPOL_POOL
-#define _ASCII  SPOL_ASCII
-#define _UTF8   SPOL_UTF8
+#define _ALWAYS StringPolicy_POOL
+#define _NEVER  StringPolicy_POOL
+#define _ASCII  StringPolicy_ASCII
+#define _UTF8   StringPolicy_UTF8
 #define _SUB(s0) (S_isASCII(s0) ? _ASCII|_ALWAYS : _ALWAYS)
 #define _SUBCHAR(s0) (S_isASCII(s0) ? _ASCII : 0)
 #define _CHARSIZE(len) (len==1 ? _ASCII : _UTF8)
@@ -138,7 +138,7 @@ static kArray *kStringToCharArray(KonohaContext *kctx, kString *bs, int istrim, 
 
 static kString *kwb_newString(KonohaContext *kctx, KUtilsWriteBuffer *wb, int flg)
 {
-	return KLIB new_kString(kctx, KLIB Kwb_top(kctx, wb, flg), Kwb_bytesize(wb), SPOL_POOL);
+	return KLIB new_kString(kctx, KLIB Kwb_top(kctx, wb, flg), Kwb_bytesize(wb), StringPolicy_POOL);
 }
 
 typedef struct {
@@ -611,12 +611,12 @@ static KMETHOD String_split(KonohaContext *kctx, KonohaStack *sfp)
 						continue;
 					}
 				}
-				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, str, strlen(str), SPOL_POOL)); // append remaining string to array
+				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, str, strlen(str), StringPolicy_POOL)); // append remaining string to array
 				break;
 			}
 			END_LOCAL();
 		} else { // for 0-length patterh
-			a = kStringToCharArray(kctx, KLIB new_kString(kctx, str, S_size(s0), SPOL_POOL), 0, -1/* no limit */);
+			a = kStringToCharArray(kctx, KLIB new_kString(kctx, str, S_size(s0), StringPolicy_POOL), 0, -1/* no limit */);
 		}
 	}
 	else {
@@ -659,13 +659,13 @@ static KMETHOD String_splitwithSeparatorLimit(KonohaContext *kctx, KonohaStack *
 						continue;
 					}
 				}
-				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, str, strlen(str), SPOL_POOL)); // append remaining string to array
+				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, str, strlen(str), StringPolicy_POOL)); // append remaining string to array
 				asize++;
 				break;
 			}
 			END_LOCAL();
 		} else { // for 0-length patterh
-			a = kStringToCharArray(kctx, KLIB new_kString(kctx, str, S_size(s0), SPOL_POOL), 0, limit);
+			a = kStringToCharArray(kctx, KLIB new_kString(kctx, str, S_size(s0), StringPolicy_POOL), 0, limit);
 		}
 	}
 	else {
@@ -779,7 +779,7 @@ static kbool_t regexp_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstT
 	return true;
 }
 
-static KMETHOD parseREGEXP(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD TokenFunc_JavaScriptRegExp(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kTokenVar *tk = (kTokenVar *)sfp[1].o;
 	int ch, prev = '/', pos = 1;
@@ -807,8 +807,8 @@ static KMETHOD parseREGEXP(KonohaContext *kctx, KonohaStack *sfp)
 				kArray *a = (kArray*)KLIB new_kObject(kctx, CT_StringArray0, 2);
 				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, source + 1, (pos0-2), 0));
 				KLIB kArray_add(kctx, a, KLIB new_kString(kctx, source + pos0, pos-pos0, 0));
-				tk->subTokenList = a;
-				tk->unresolvedTokenType = SYM_("$regexp");
+				tk->subTokenList = a;  // FIXME: terrible bug!! who wrote this?
+				tk->unresolvedTokenType = SYM_("$RegExp");
 			}
 			RETURNi_(pos);
 		}
@@ -820,9 +820,9 @@ static KMETHOD parseREGEXP(KonohaContext *kctx, KonohaStack *sfp)
 	RETURNi_(pos-1);
 }
 
-static KMETHOD ExprTyCheck_RegExp(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD TypeCheck_RegExp(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ExprTyCheck(stmt, expr, gma, reqty);
+	VAR_TypeCheck(stmt, expr, gma, reqty);
 	kToken *tk = expr->termToken;
 	kRegExp *r = new_(RegExp, NULL);
 	DBG_ASSERT(kArray_size(tk->subTokenList) == 2);
@@ -832,14 +832,13 @@ static KMETHOD ExprTyCheck_RegExp(KonohaContext *kctx, KonohaStack *sfp)
 
 static kbool_t regexp_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
 {
-	kMethod *mtd = KLIB new_kMethod(kctx, 0, 0, 0, parseREGEXP);
-	kFunc *fo = GCSAFE_new(Func, (uintptr_t) mtd);
-	SUGAR kNameSpace_setTokenizeFunc(kctx, ns, '/', NULL, fo, 0);
 	KDEFINE_SYNTAX SYNTAX[] = {
-		{ .keyword = SYM_("$regexp"),  ExprTyCheck_(RegExp), },
+		{ .keyword = SYM_("$RegExp"),  TypeCheck_(RegExp), },
 		{ .keyword = KW_END, },
 	};
 	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+
+	SUGAR kNameSpace_setTokenFunc(kctx, ns, SYM_("$RegExp"), KonohaChar_Slash, new_SugarFunc(TokenFunc_JavaScriptRegExp));
 	return true;
 }
 

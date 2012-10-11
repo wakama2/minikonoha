@@ -44,15 +44,15 @@ static kbool_t while_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTi
 
 // --------------------------------------------------------------------------
 
-static KMETHOD StmtTyCheck_while(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD Statement_while(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_StmtTyCheck(stmt, gma);
+	VAR_Statement(stmt, gma);
 	DBG_P("while statement .. ");
 	int ret = false;
 	if(SUGAR kStmt_tyCheckByName(kctx, stmt, KW_ExprPattern, gma, TY_boolean, 0)) {
 		kBlock *bk = SUGAR kStmt_getBlock(kctx, stmt, NULL/*DefaultNameSpace*/, KW_BlockPattern, K_NULLBLOCK);
-		Stmt_setCatchContinue(stmt, true);  // set before tyCheckAll
-		Stmt_setCatchBreak(stmt, true);
+		kStmt_set(CatchContinue, stmt, true);  // set before tyCheckAll
+		kStmt_set(CatchBreak, stmt, true);
 		ret = SUGAR kBlock_tyCheckAll(kctx, bk, gma);
 		if(ret) {
 			kStmt_typed(stmt, LOOP);
@@ -71,7 +71,7 @@ static kbool_t while_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameS
 	KImportPackage(ns, "konoha.break", pline);
 	KImportPackage(ns, "konoha.continue", pline);
 	KDEFINE_SYNTAX SYNTAX[] = {
-		{ SYM_("while"), 0, "\"while\" \"(\" $Expr \")\" $Block", 0, 0, NULL, NULL, NULL, StmtTyCheck_while, NULL, },
+		{ SYM_("while"), 0, "\"while\" \"(\" $Expr \")\" $Block", 0, 0, NULL, NULL, NULL, Statement_while, NULL, },
 		{ KW_END, },
 	};
 	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);

@@ -64,21 +64,21 @@ static kbool_t null_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTim
 	return true;
 }
 
-static KMETHOD ExprTyCheck_null(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD TypeCheck_null(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ExprTyCheck(stmt, expr, gma, reqty);
+	VAR_TypeCheck(stmt, expr, gma, reqty);
 	if(reqty == TY_var) reqty = TY_Object;
 	RETURN_(SUGAR kExpr_setVariable(kctx, expr, gma, TEXPR_NULL, reqty, 0));
 }
 
-static KMETHOD ParseExpr_isNull(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD Expression_isNull(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ParseExpr(stmt, tokenList, beginIdx, operatorIdx, endIdx);
+	VAR_Expression(stmt, tokenList, beginIdx, operatorIdx, endIdx);
 	if(operatorIdx + 2 == endIdx) {
 		DBG_P("checking .. x == null");
 		kTokenVar *tk = tokenList->tokenVarItems[operatorIdx+1];
 		if(tk->resolvedSymbol == SYM_("null")) {
-			kExpr *leftHandExpr = SUGAR kStmt_parseExpr(kctx, stmt, tokenList, beginIdx, operatorIdx);
+			kExpr *leftHandExpr = SUGAR kStmt_parseExpr(kctx, stmt, tokenList, beginIdx, operatorIdx, NULL);
 			tk->resolvedSymbol = SYM_("isNull");
 			RETURN_(SUGAR new_UntypedCallStyleExpr(kctx, SYN_(Stmt_nameSpace(stmt), KW_ExprMethodCall), 2, tk, leftHandExpr));
 		}
@@ -86,14 +86,14 @@ static KMETHOD ParseExpr_isNull(KonohaContext *kctx, KonohaStack *sfp)
 	DBG_P("checking parent .. == ..");
 }
 
-static KMETHOD ParseExpr_isNotNull(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD Expression_isNotNull(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ParseExpr(stmt, tokenList, beginIdx, operatorIdx, endIdx);
+	VAR_Expression(stmt, tokenList, beginIdx, operatorIdx, endIdx);
 	if(operatorIdx + 2 == endIdx) {
 		DBG_P("checking .. x != null");
 		kTokenVar *tk = tokenList->tokenVarItems[operatorIdx+1];
 		if(tk->resolvedSymbol == SYM_("null")) {
-			kExpr *leftHandExpr = SUGAR kStmt_parseExpr(kctx, stmt, tokenList, beginIdx, operatorIdx);
+			kExpr *leftHandExpr = SUGAR kStmt_parseExpr(kctx, stmt, tokenList, beginIdx, operatorIdx, NULL);
 			tk->resolvedSymbol = SYM_("isNotNull");
 			RETURN_(SUGAR new_UntypedCallStyleExpr(kctx, SYN_(Stmt_nameSpace(stmt), KW_ExprMethodCall), 2, tk, leftHandExpr));
 		}
@@ -105,12 +105,12 @@ static KMETHOD ParseExpr_isNotNull(KonohaContext *kctx, KonohaStack *sfp)
 static kbool_t null_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
-		{ SYM_("null"), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, ExprTyCheck_null, },
+		{ SYM_("null"), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, TypeCheck_null, },
 		{ KW_END, },
 	};
 	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
-	SUGAR kNameSpace_addSugarFunc(kctx, ns, SYM_("=="), SUGARFUNC_ParseExpr, new_SugarFunc(ParseExpr_isNull));
-	SUGAR kNameSpace_addSugarFunc(kctx, ns, SYM_("!="), SUGARFUNC_ParseExpr, new_SugarFunc(ParseExpr_isNotNull));
+	SUGAR kNameSpace_addSugarFunc(kctx, ns, SYM_("=="), SugarFunc_Expression, new_SugarFunc(Expression_isNull));
+	SUGAR kNameSpace_addSugarFunc(kctx, ns, SYM_("!="), SugarFunc_Expression, new_SugarFunc(Expression_isNotNull));
 	return true;
 }
 

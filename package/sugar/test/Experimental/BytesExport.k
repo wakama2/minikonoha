@@ -17,7 +17,7 @@ int singleQuoteToken (Token tk, String source) {
 		}
 		if(ch == "'" && prev != "\\") {
 			tk.setText(source.substring(1, pos - 1));
-			tk.setUnresolvedTokenType("$SingleQuote");
+			tk.setUnresolvedTokenType("$SingleQuotedChar");
 			return pos + 1;
 		}
 		prev = ch;
@@ -26,7 +26,7 @@ int singleQuoteToken (Token tk, String source) {
 	return pos-1;
 }
 
-Expr tyCheckSingleQuote(Stmt stmt, Expr expr, Gamma gma, int typeid) {
+Expr tyCheckSingleQuotedChar(Stmt stmt, Expr expr, Gamma gma, int typeid) {
 	Token tk = expr.getTermToken();
 	String s = tk.getText();
 	if (s.getSize() == 1) {
@@ -38,6 +38,6 @@ Expr tyCheckSingleQuote(Stmt stmt, Expr expr, Gamma gma, int typeid) {
 }
 
 
-addTokenizeFunc("'", singleQuoteToken);
-addExprTyCheck("$SingleQuote", tyCheckSingleQuote);
-//addTermParseExpr("$SingleQuote");
+setTokenFunc("'", singleQuoteToken);
+addTypeCheck("$SingleQuotedChar", tyCheckSingleQuotedChar);
+//addTermExpression("$SingleQuotedChar");

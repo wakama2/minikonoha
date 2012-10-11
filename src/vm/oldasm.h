@@ -44,28 +44,28 @@
 #define BBOP(BB)     (BB)->codeTable.codeItems
 #define GammaBuilderLabel(n)   (kBasicBlock*)(ctxcode->lstacks->objectItems[n])
 
-#define ASM(T, ...) do {\
-	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, ## __VA_ARGS__};\
-	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_;\
-	BUILD_asm(kctx, &tmp_.op, sizeof(OP##T));\
+#define ASM(T, ...) do {												\
+	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, ## __VA_ARGS__};		\
+	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_; \
+	BUILD_asm(kctx, &tmp_.op, sizeof(OP##T));						\
 } while (0)
 
-#define ASMop(T, OP, ...) do {\
-	OP##T op_ = {TADDR, OP, ASMLINE, ## __VA_ARGS__};\
-	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_;\
-	BUILD_asm(kctx, &tmp_.op, sizeof(OP##T));\
+#define ASMop(T, OP, ...) do {											\
+	OP##T op_ = {TADDR, OP, ASMLINE, ## __VA_ARGS__};				\
+	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_; \
+	BUILD_asm(kctx, &tmp_.op, sizeof(OP##T));						\
 } while (0)
 
-#define ASMbranch(T, lb, ...) do {\
-	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, NULL, ## __VA_ARGS__};\
-	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_;\
-	ASM_BRANCH_(kctx, lb, &tmp_.op, sizeof(OP##T)); \
+#define ASMbranch(T, lb, ...) do {										\
+	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, NULL, ## __VA_ARGS__};	\
+	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_; \
+	ASM_BRANCH_(kctx, lb, &tmp_.op, sizeof(OP##T));					\
 } while (0)
 
-#define kBasicBlock_add(bb, T, ...) do { \
-	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, ## __VA_ARGS__};\
-	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_;\
-	BasicBlock_add(kctx, bb, 0, &tmp_.op, sizeof(OP##T));\
+#define kBasicBlock_add(bb, T, ...) do {								\
+	OP##T op_ = {TADDR, OPCODE_##T, ASMLINE, ## __VA_ARGS__};		\
+	union { VirtualMachineInstruction op; OP##T op_; } tmp_; tmp_.op_ = op_; \
+	BasicBlock_add(kctx, bb, 0, &tmp_.op, sizeof(OP##T));			\
 } while (0)
 
 #ifdef _CLASSICVM
@@ -619,7 +619,7 @@ static void CALL_asm(KonohaContext *kctx, kStmt *stmt, int a, kExpr *expr, int s
 {
 	kMethod *mtd = expr->cons->methodItems[0];
 	DBG_ASSERT(IS_Method(mtd));
-	int i, s = Method_isStatic(mtd) ? 2 : 1, thisidx = espidx + K_CALLDELTA;
+	int i, s = kMethod_is(Static, mtd) ? 2 : 1, thisidx = espidx + K_CALLDELTA;
 #ifdef _CLASSICVM
 	if (CLASSICVM_CALL_asm(kctx, mtd, expr, shift, espidx)) {
 		return;
@@ -634,7 +634,7 @@ static void CALL_asm(KonohaContext *kctx, kStmt *stmt, int a, kExpr *expr, int s
 //	if (mtd->mn == MN_new && mtd->invokeMethodFunc == MethodFunc_abstract) {
 //		/* do nothing */
 //	} else
-//	if(Method_isFinal(mtd) || !Method_isVirtual(mtd)) {
+//	if(kMethod_is(Final, mtd) || !kMethod_is(Virtual, mtd)) {
 //		if(mtd->invokeMethodFunc != MethodFunc_runVirtualMachine) {
 //		ASM(SCALL, ctxcode->uline, SFP_(thisidx), ESP_(espidx, argc), mtd, KLIB Knull(kctx, CT_(expr->ty)));
 //		}
@@ -643,7 +643,7 @@ static void CALL_asm(KonohaContext *kctx, kStmt *stmt, int a, kExpr *expr, int s
 //		}
 //	}
 //	else {
-	if(Method_isFinal(mtd) || !Method_isVirtual(mtd)) {
+	if(kMethod_is(Final, mtd) || !kMethod_is(Virtual, mtd)) {
 		ASM(NSET, NC_(thisidx-1), (intptr_t)mtd, CT_Method);
 	}
 	else {

@@ -57,10 +57,11 @@ static kstatus_t kNameSpace_eval(KonohaContext *kctx, kNameSpace *ns, const char
 	kmodsugar->h.setup(kctx, (KonohaModule*)kmodsugar, 0/*lazy*/);
 	INIT_GCSTACK();
 	{
-		TokenRange rangeBuf, *range = new_TokenListRange(kctx, ns, KonohaContext_getSugarContext(kctx)->preparedTokenList, &rangeBuf);
-		TokenRange_tokenize(kctx, range, script, uline);
-		result = TokenRange_eval(kctx, range);
-		TokenRange_pop(kctx, range);
+		TokenSequence tokens = {ns, KonohaContext_getSugarContext(kctx)->preparedTokenList};
+		TokenSequence_push(kctx, tokens);
+		TokenSequence_tokenize(kctx, &tokens, script, uline);
+		result = TokenSequence_eval(kctx, &tokens);
+		TokenSequence_pop(kctx, tokens);
 	}
 	RESET_GCSTACK();
 	return result;
@@ -177,7 +178,8 @@ void MODSUGAR_init(KonohaContext *kctx, KonohaContextVar *ctx)
 
 	KLIB Knull(kctx, mod->cToken);
 	KLIB Knull(kctx, mod->cExpr);
-	KLIB Knull(kctx, mod->cBlock);
+	kStmtVar *NullStmt = (kStmtVar*)KLIB Knull(kctx, mod->cStmt);
+	KSETv(NullStmt, NullStmt->parentBlockNULL, (kBlock*)KLIB Knull(kctx, mod->cBlock));
 
 	SugarModule_setup(kctx, &mod->h, 0);
 
@@ -192,14 +194,15 @@ void MODSUGAR_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	};
 	kNameSpace_loadConstData(kctx, KNULL(NameSpace), KonohaConst_(ClassData), 0);
 
-	mod->new_TokenListRange         = new_TokenListRange;
-	mod->new_TokenStackRange        = new_TokenStackRange;
-	mod->kNameSpace_setTokenizeFunc = kNameSpace_setTokenizeFunc;
-	mod->TokenRange_tokenize        = TokenRange_tokenize;
-	mod->TokenRange_eval            = TokenRange_eval;
-	mod->TokenRange_resolved        = TokenRange_resolved;
-	mod->kStmt_parseTypePattern     = kStmt_parseTypePattern;
+	mod->kNameSpace_setTokenFunc       = kNameSpace_setTokenFunc;
+	mod->TokenSequence_tokenize        = TokenSequence_tokenize;
+	mod->TokenSequence_applyMacro      = TokenSequence_applyMacro;
+	mod->kNameSpace_setMacroData       = kNameSpace_setMacroData;
+	mod->TokenSequence_resolved        = TokenSequence_resolved2;
+	mod->TokenSequence_eval            = TokenSequence_eval;
+	mod->TokenUtils_parseTypePattern     = TokenUtils_parseTypePattern;
 	mod->kToken_transformToBraceGroup = kToken_transformToBraceGroup;
+	mod->kStmt_addParsedObject      = kStmt_addParsedObject;
 	mod->kStmt_parseFlag            = kStmt_parseFlag;
 	mod->kStmt_getToken             = kStmt_getToken;
 	mod->kStmt_getBlock             = kStmt_getBlock;
@@ -219,10 +222,10 @@ void MODSUGAR_init(KonohaContext *kctx, KonohaContextVar *ctx)
 
 	mod->kNameSpace_defineSyntax    = kNameSpace_defineSyntax;
 	mod->kNameSpace_getSyntax       = kNameSpace_getSyntax;
-	mod->kArray_addSyntaxRule       = kArray_addSyntaxRule;
+	mod->kArray_addSyntaxRule       = kArray_addSyntaxPattern;
 	mod->kNameSpace_setSugarFunc    = kNameSpace_setSugarFunc;
 	mod->kNameSpace_addSugarFunc    = kNameSpace_addSugarFunc;
-	mod->new_kBlock                  = new_kBlock;
+	mod->new_kBlock                 = new_kBlock;
 	mod->new_kStmt                  = new_kStmt;
 	mod->kBlock_insertAfter         = kBlock_insertAfter;
 	mod->new_UntypedTermExpr        = new_UntypedTermExpr;
@@ -244,7 +247,7 @@ void MODSUGAR_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	defineDefaultSyntax(kctx, KNULL(NameSpace));
 }
 
-// boolean NameSpace.loadScript(String path);
+// boolean NameSpace.load(String path);
 static KMETHOD NameSpace_loadScript(KonohaContext *kctx, KonohaStack *sfp)
 {
 	char pathbuf[256];
@@ -252,10 +255,18 @@ static KMETHOD NameSpace_loadScript(KonohaContext *kctx, KonohaStack *sfp)
 	RETURNb_(kNameSpace_loadScript(kctx, sfp[0].asNameSpace, path, sfp[K_RTNIDX].uline));
 }
 
-// boolean NameSpace.importPackage(String pkgname);
+// boolean NameSpace.import(String pkgname);
 static KMETHOD NameSpace_importPackage(KonohaContext *kctx, KonohaStack *sfp)
 {
 	RETURNb_(kNameSpace_importPackage(kctx, sfp[0].asNameSpace, S_text(sfp[1].asString), sfp[K_RTNIDX].uline));
+}
+
+// boolean NameSpace.import(String pkgname, String symbol);
+static KMETHOD NameSpace_importPackageSymbol(KonohaContext *kctx, KonohaStack *sfp)
+{
+	kString *key = sfp[2].asString;
+	ksymbol_t keyword = ksymbolA(S_text(key), S_size(key), _NEWID);
+	RETURNb_(kNameSpace_importPackageSymbol(kctx, sfp[0].asNameSpace, S_text(sfp[1].asString), keyword, sfp[K_RTNIDX].uline));
 }
 
 #define _Public kMethod_Public
@@ -266,6 +277,7 @@ void MODSUGAR_loadMethod(KonohaContext *kctx)
 {
 	KDEFINE_METHOD MethodData[] = {
 		_Public, _F(NameSpace_importPackage), TY_boolean, TY_NameSpace, MN_("import"), 1, TY_String, FN_("name"),
+		_Public, _F(NameSpace_importPackageSymbol), TY_boolean, TY_NameSpace, MN_("import"), 2, TY_String, FN_("name"), TY_String, FN_("symbol"),
 		_Public, _F(NameSpace_loadScript), TY_boolean, TY_NameSpace, MN_("load"), 1, TY_String, FN_("path"),
 		DEND,
 	};

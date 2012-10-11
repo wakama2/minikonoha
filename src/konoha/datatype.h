@@ -55,7 +55,7 @@ static void kObject_reftrace(KonohaContext *kctx, kObject *o)
 static kObject *new_kObject(KonohaContext *kctx, KonohaClass *ct, uintptr_t conf)
 {
 	DBG_ASSERT(ct->cstruct_size > 0);
-	kObjectVar *o = (kObjectVar*) MODGC_omalloc(kctx, ct->cstruct_size);
+	kObjectVar *o = KLIB KallocObject(kctx->gcContext, ct);
 	o->h.magicflag = ct->magicflag;
 	o->h.ct = ct;
 	o->h.kvproto = (KUtilsGrowingArray*) Kprotomap_new(0);
@@ -213,7 +213,7 @@ static kString* new_kString(KonohaContext *kctx, const char *text, size_t len, i
 	KonohaClass *ct = CT_(TY_String);
 	kStringVar *s = NULL; //knh_PtrMap_getS(kctx, ct->constPoolMapNULL, text, len);
 	if(s != NULL) return s;
-	if(TFLAG_is(int, spol, SPOL_TEXT)) {
+	if(TFLAG_is(int, spol, StringPolicy_TEXT)) {
 		s = (kStringVar*)new_kObject(kctx, ct, 0);
 		s->text = text;
 		s->bytesize = len;
@@ -225,7 +225,7 @@ static kString* new_kString(KonohaContext *kctx, const char *text, size_t len, i
 		s->bytesize = len;
 		S_setTextSgm(s, 1);
 		if(text != NULL) {
-			DBG_ASSERT(!TFLAG_is(int, spol, SPOL_NOCOPY));
+			DBG_ASSERT(!TFLAG_is(int, spol, StringPolicy_NOCOPY));
 			memcpy(s->ubuf, text, len);
 		}
 		s->buf[len] = '\0';
@@ -237,21 +237,21 @@ static kString* new_kString(KonohaContext *kctx, const char *text, size_t len, i
 		S_setTextSgm(s, 0);
 		S_setMallocText(s, 1);
 		if(text != NULL) {
-			DBG_ASSERT(!TFLAG_is(int, spol, SPOL_NOCOPY));
+			DBG_ASSERT(!TFLAG_is(int, spol, StringPolicy_NOCOPY));
 			memcpy(s->ubuf, text, len);
 		}
 		s->buf[len] = '\0';
 	}
-	if(TFLAG_is(int, spol, SPOL_ASCII)) {
+	if(TFLAG_is(int, spol, StringPolicy_ASCII)) {
 		S_setASCII(s, 1);
 	}
-	else if(TFLAG_is(int, spol, SPOL_UTF8)) {
+	else if(TFLAG_is(int, spol, StringPolicy_UTF8)) {
 		S_setASCII(s, 0);
 	}
 	else {
 		kString_checkASCII(kctx, s);
 	}
-//	if(TFLAG_is(int, policy, SPOL_POOL)) {
+//	if(TFLAG_is(int, policy, StringPolicy_POOL)) {
 //		kmapSN_add(kctx, ct->constPoolMapNO, s);
 //		S_setPooled(s, 1);
 //	}
@@ -553,7 +553,6 @@ static void kNameSpace_init(KonohaContext *kctx, kObject *o, void *conf)
 	if(conf != NULL) {
 		KINITv(ns->parentNULL, (kNameSpace*)conf);
 		ns->packageId     = ns->parentNULL->packageId;
-		ns->packageDomain = ns->parentNULL->packageDomain;
 		ns->syntaxOption  = ns->parentNULL->syntaxOption;
 	}
 	KINITv(ns->methodList, K_EMPTYARRAY);
@@ -564,15 +563,17 @@ static void kNameSpace_reftrace(KonohaContext *kctx, kObject *o)
 	kNameSpace *ns = (kNameSpace*)o;
 	KLIB kNameSpace_reftraceSugarExtension(kctx, ns);
 	size_t i, size = kNameSpace_sizeConstTable(ns);
-	BEGIN_REFTRACE(size+3);
+	BEGIN_REFTRACE(size + 5);
 	for(i = 0; i < size; i++) {
-		if(SYMKEY_isBOXED(ns->constTable.keyvalueItems[i].key)) {
-			KREFTRACEv(ns->constTable.keyvalueItems[i].objectValue);
+		if(SYMKEY_isBOXED(ns->constTable.keyValueItems[i].key)) {
+			KREFTRACEv(ns->constTable.keyValueItems[i].objectValue);
 		}
 	}
+	KREFTRACEv(ns->methodList);
 	KREFTRACEn(ns->parentNULL);
 	KREFTRACEn(ns->globalObjectNULL);
-	KREFTRACEv(ns->methodList);
+	KREFTRACEn(ns->TokenFuncListNULL);
+	KREFTRACEn(ns->StmtPatternListNULL);
 	END_REFTRACE();
 }
 
@@ -591,6 +592,7 @@ static void Func_init(KonohaContext *kctx, kObject *o, void *conf)
 	kFuncVar *fo = (kFuncVar*)o;
 	KINITv(fo->self, K_NULL);
 	KINITv(fo->mtd, conf == NULL ? KNULL(Method) : (kMethod*)conf);
+	fo->adhocKeyForTokenFunc = 0;
 }
 
 static void Func_reftrace(KonohaContext *kctx, kObject *o)
@@ -864,7 +866,7 @@ static kString* KonohaClass_shortName(KonohaContext *kctx, KonohaClass *ct)
 			}
 			KLIB Kwb_write(kctx, &wb, "]", 1);
 			const char *text = Kwb_top(kctx, &wb, 1);
-			KINITv(((KonohaClassVar*)ct)->shortNameNULL, new_kString(kctx, text, Kwb_bytesize(&wb), SPOL_ASCII));
+			KINITv(((KonohaClassVar*)ct)->shortNameNULL, new_kString(kctx, text, Kwb_bytesize(&wb), StringPolicy_ASCII));
 			KLIB Kwb_free(&wb);
 		}
 	}
@@ -898,7 +900,7 @@ static KonohaClass *KonohaClass_define(KonohaContext *kctx, kpackage_t packageId
 	if(name == NULL) {
 		const char *n = cdef->structname;
 		assert(n != NULL); // structname must be set;
-		ct->classNameSymbol = ksymbolSPOL(n, strlen(n), SPOL_ASCII|SPOL_POOL|SPOL_TEXT, _NEWID);
+		ct->classNameSymbol = ksymbolSPOL(n, strlen(n), StringPolicy_ASCII|StringPolicy_POOL|StringPolicy_TEXT, _NEWID);
 	}
 	else {
 		ct->classNameSymbol = ksymbolA(S_text(name), S_size(name), _NEWID);
@@ -1033,16 +1035,16 @@ static void defineDefaultKeywordSymbol(KonohaContext *kctx)
 {
 	size_t i;
 	static const char *keywords[] = {
-		"", "$Expr", "$Symbol", "$Text", "$Number",
-		"$Type", "()", "[]", "{}", "$Block", "$Param", "$Token",
+		"", "$Expr", "$Symbol", "$Text", "$Number", "$Type",
+		"()", "[]", "{}", "$Block", "$Param", "$TypeDecl", "$MethodDecl", "$Token",
 		".", "/", "%", "*", "+", "-", "<", "<=", ">", ">=", "==", "!=",
 		"&&", "||", "!", "=", ",", "$", ":", /*"@",*/
 		"true", "false", "if", "else", "return", // syn
 		"new",
 	};
 	for(i = 0; i < sizeof(keywords) / sizeof(const char*); i++) {
-		ksymbolSPOL(keywords[i], strlen(keywords[i]), SPOL_TEXT|SPOL_ASCII, SYM_NEWID);
-		//ksymbol_t sym = ksymbolSPOL(keywords[i], strlen(keywords[i]), SPOL_TEXT|SPOL_ASCII, SYM_NEWID);
+		ksymbolSPOL(keywords[i], strlen(keywords[i]), StringPolicy_TEXT|StringPolicy_ASCII, SYM_NEWID);
+		//ksymbol_t sym = ksymbolSPOL(keywords[i], strlen(keywords[i]), StringPolicy_TEXT|StringPolicy_ASCII, SYM_NEWID);
 		//fprintf(stdout, "#define KW_%s (((ksymbol_t)%d)|0) /*%s*/\n", SYM_t(sym), SYM_UNMASK(sym), keywords[i]);
 	}
 }
@@ -1054,7 +1056,7 @@ static void initStructData(KonohaContext *kctx)
 	for(i = 0; i <= TY_0; i++) {
 		KonohaClassVar *ct = (KonohaClassVar *)ctt[i];
 		const char *name = ct->DBG_NAME;
-		ct->classNameSymbol = ksymbolSPOL(name, strlen(name), SPOL_ASCII|SPOL_POOL|SPOL_TEXT, _NEWID);
+		ct->classNameSymbol = ksymbolSPOL(name, strlen(name), StringPolicy_ASCII|StringPolicy_POOL|StringPolicy_TEXT, _NEWID);
 		KonohaClass_setName(kctx, ct, 0);
 	}
 	KLIB Knull(kctx, CT_NameSpace);
@@ -1065,7 +1067,6 @@ static void initKonohaLib(KonohaLibVar *l)
 	l->Kclass                  = Kclass;
 	l->new_kObject             = new_kObject;
 	l->new_kObjectOnGCSTACK    = new_kObjectOnGCSTACK;
-	l->kObject_isManaged       = MODGC_kObject_isManaged;
 	l->new_kString             = new_kString;
 	l->new_kStringf            = new_kStringf;
 	//l->Kconv  = conv;

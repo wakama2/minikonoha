@@ -126,8 +126,7 @@ static char parseBinaryDigit(char c)
 	return ('0' == c || c == '1') ? c - '0' : -1;
 }
 
-#include <stdio.h>
-static KMETHOD parseNumber(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD TokenFunc_ExtendedIntLiteral(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kTokenVar *tk = (kTokenVar *)sfp[1].o;
 	const char *source = S_text(sfp[2].asString);
@@ -219,7 +218,7 @@ static KMETHOD parseNumber(KonohaContext *kctx, KonohaStack *sfp)
 				break;
 		}
 		end = source;
-		KSETv(tk, tk->text, KLIB new_kString(kctx, start, end - start, SPOL_ASCII));
+		KSETv(tk, tk->text, KLIB new_kString(kctx, start, end - start, StringPolicy_ASCII));
 		tk->unresolvedTokenType = isFloat ? SYM_("$Float") : TokenType_INT;
 	}
 	RETURNi_(source - start);
@@ -260,9 +259,9 @@ static kint_t kstrtoll(const char *p)
 	return _kstrtoll(p, parseDecimalDigit, 10);
 }
 
-static KMETHOD ExprTyCheck_Int2(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD TypeCheck_ExtendedIntLiteral(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ExprTyCheck(stmt, expr, gma, reqty);
+	VAR_TypeCheck(stmt, expr, gma, reqty);
 	kToken *tk = expr->termToken;
 	long long n = kstrtoll(S_text(tk->text));
 	RETURN_(SUGAR kExpr_setUnboxConstValue(kctx, expr, TY_int, (uintptr_t)n));
@@ -271,25 +270,22 @@ static KMETHOD ExprTyCheck_Int2(KonohaContext *kctx, KonohaStack *sfp)
 static kbool_t int_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
-		{ KW_NumberPattern, 0,  NULL, 0, 0, NULL, NULL, NULL, NULL, ExprTyCheck_Int2, },
-		{ SYM_("~"),  0, NULL, 0,                   C_PRECEDENCE_PREUNARY, NULL, NULL, NULL, NULL, NULL, },
-		{ SYM_("<<"), 0, NULL, C_PRECEDENCE_SHIFT,  0,                     NULL, NULL, NULL, NULL, NULL, },
-		{ SYM_(">>"), 0, NULL, C_PRECEDENCE_SHIFT,  0,                     NULL, NULL, NULL, NULL, NULL, },
-		{ SYM_("&"),  0, NULL, C_PRECEDENCE_BITAND, 0,                     NULL, NULL, NULL, NULL, NULL, },
-		{ SYM_("|"),  0, NULL, C_PRECEDENCE_BITOR,  0,                     NULL, NULL, NULL, NULL, NULL, },
-		{ SYM_("^"),  0, NULL, C_PRECEDENCE_BITXOR, 0,                     NULL, NULL, NULL, NULL, NULL, },
+		{ KW_NumberPattern, 0,  NULL, 0, 0, NULL, NULL, NULL, NULL, TypeCheck_ExtendedIntLiteral, },
+		{ SYM_("~"),  0, NULL, 0,                   Precedence_CStylePREUNARY, NULL, NULL, NULL, NULL, NULL, },
+		{ SYM_("<<"), 0, NULL, Precedence_CStyleSHIFT,  0,                     NULL, NULL, NULL, NULL, NULL, },
+		{ SYM_(">>"), 0, NULL, Precedence_CStyleSHIFT,  0,                     NULL, NULL, NULL, NULL, NULL, },
+		{ SYM_("&"),  0, NULL, Precedence_CStyleBITAND, 0,                     NULL, NULL, NULL, NULL, NULL, },
+		{ SYM_("|"),  0, NULL, Precedence_CStyleBITOR,  0,                     NULL, NULL, NULL, NULL, NULL, },
+		{ SYM_("^"),  0, NULL, Precedence_CStyleBITXOR, 0,                     NULL, NULL, NULL, NULL, NULL, },
 		{ KW_END, },
 	};
 	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
 
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
-	kMethod *mtd = KLIB new_kMethod(kctx, 0, 0, 0, parseNumber);
-	kFunc *fo = GCSAFE_new(Func, (uintptr_t) mtd);
-	SUGAR kNameSpace_setTokenizeFunc(kctx, ns, '0', NULL, fo, 0);
+	SUGAR kNameSpace_setTokenFunc(kctx, ns, KW_NumberPattern, KonohaChar_Digit, new_SugarFunc(TokenFunc_ExtendedIntLiteral));
 
 	SugarSyntaxVar *syn = (SugarSyntaxVar*)SUGAR kNameSpace_getSyntax(kctx, ns, SYM_("+"), 0);
 	if(syn != NULL) {
-		syn->precedence_op1  = 16;
+		syn->precedence_op1  = Precedence_CStylePREUNARY;
 	}
 	return true;
 }

@@ -7,75 +7,27 @@ cmake_minimum_required(VERSION 2.6)
 
 project(minikonoha)
 set(VERSION_MAJOR "0")
-set(VERSION_MINOR "1")
+set(VERSION_MINOR "2")
 set(VERSION_PATCH "0")
 
-set(PACKAGE_NAME    ${PROJECT_NAME})
-set(PACKAGE_VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
-set(PACKAGE_STRING  ${CMAKE_PROJECT_NAME}-${PACKAGE_VERSION})
-set(SO_VERSION      ${VERSION_MAJOR}.${VERSION_MINOR})
-set(PACKAGE_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
-
-set(K_CONFIG_ARCH ${CMAKE_SYSTEM})
-set(K_CONFIG_OS   ${CMAKE_SYSTEM_NAME})
-set(K_CONFIG_CPU  ${CMAKE_SYSTEM_PROCESSOR})
-set(K_PREFIX ${CMAKE_INSTALL_PREFIX})
-if(UNIX)
-	set(K_OSDLLEXT ".so")
-endif(UNIX)
-
-if(APPLE)
-	set(K_OSDLLEXT ".dylib")
-endif(APPLE)
-
-if(CYGWIN)
-	set(K_OSDLLEXT ".so")
-endif(CYGWIN)
-
-if(MSVC)
-	set(K_OSDLLEXT ".dll")
-endif(MSVC)
-
-if(MINGW)
-	set(K_OSDLLEXT ".dll")
-endif(MINGW)
-
-set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${INCLUDE_DIRS})
-
-if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE "Release" )
-endif()
-string(TOUPPER ${CMAKE_BUILD_TYPE} uppercase_CMAKE_BUILD_TYPE)
-
-option(USE_X86_32 off)
-set(KONOHA_CFLAGS "")
-if(USE_X86_32)
-set(KONOHA_CFLAGS "-m32")
-endif(USE_X86_32)
-
-SET(CMAKE_C_FLAGS         "-Wall ${KONOHA_CFLAGS}")
-SET(CMAKE_CXX_FLAGS       "-Wall ${KONOHA_CFLAGS}")
+SET(CFLAGS "-Wfloat-equal -Wsign-compare -Wformat")
+SET(CFLAGS "${CFLAGS} -Wall -Wcomment -Wunused-macros")
+SET(CMAKE_C_FLAGS   "${CFLAGS} -Wno-long-long")
+SET(CMAKE_CXX_FLAGS "${CFLAGS}")
 if(MSVC)
 	SET(CMAKE_C_FLAGS_RELEASE      "/D NDEBUG /W3 /Wall /TP /MT /Ox /Ob2 /GL")
 	SET(CMAKE_C_FLAGS_DEBUG        "/D_DEBUG /W3 /Wall /TP /MTd /Zi /Ob0 /Od /RTC1")
 	SET(CMAKE_C_FLAGS_COMPRESSED   "/D NDEBUG /W3 /Wall /TP /MT /Ox /GL")
 else(MSVC)
-	SET(CMAKE_C_FLAGS_RELEASE      "-Wall -O3 -g")
-	SET(CMAKE_C_FLAGS_DEBUG        "-O0 -g3")
-	SET(CMAKE_C_FLAGS_COMPRESSED   "-Os -g0")
+	SET(CMAKE_C_FLAGS_RELEASE      "${CMAKE_C_FLAGS} -O3 -g")
+	SET(CMAKE_C_FLAGS_DEBUG        "${CMAKE_C_FLAGS} -O0 -g3")
+	SET(CMAKE_C_FLAGS_COMPRESSED   "${CMAKE_C_FLAGS} -Os -g0")
 endif(MSVC)
-SET(CMAKE_CXX_FLAGS_RELEASE    "${CMAKE_C_FLAGS_RELEASE}")
-SET(CMAKE_CXX_FLAGS_DEBUG      "${CMAKE_C_FLAGS_DEBUG}")
-SET(CMAKE_CXX_FLAGS_COMPRESSED "${CMAKE_C_FLAGS_COMPRESSED}")
+SET(CMAKE_CXX_FLAGS_RELEASE    "${CMAKE_CXX_FLAGS} -O3 -g")
+SET(CMAKE_CXX_FLAGS_DEBUG      "${CMAKE_CXX_FLAGS} -O0 -g3")
+SET(CMAKE_CXX_FLAGS_COMPRESSED "${CMAKE_CXX_FLAGS} -Os -g0")
 
-if(${CMAKE_BUILD_TYPE} STREQUAL "Compressed")
-	set(K_NODEBUG 1)
-	add_definitions(-DNDEBUG)
-	add_definitions(-DUSE_SMALLBUILD)
-endif()
-
+## Source Code settings
 set(RUNTIME
 	src/konoha/minikonoha.c
 )
@@ -98,6 +50,7 @@ else(KONOHA_VM_MODULE)
 	set(VM src/vm/compiler.c)
 endif(KONOHA_VM_MODULE)
 
+## Packages
 set(PACKAGES
 ## add konoha.xx package in an alphabetical order 
 	konoha
@@ -106,6 +59,7 @@ set(PACKAGES
 	konoha.break
 	konoha.bytes
 	konoha.class
+	konoha.complex
 	konoha.const
 	konoha.continue
 	konoha.date
@@ -135,6 +89,7 @@ set(PACKAGES
 	konoha.var
 	konoha.while
 	sugar
+	cstyle
 	llvm
 	posix.process
 	posix.file
@@ -152,7 +107,46 @@ set(PACKAGES
 	apache
 #	openssl
 #	logpool
+	gmp
 )
+
+set(PACKAGE_NAME    ${PROJECT_NAME})
+set(PACKAGE_VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+set(PACKAGE_STRING  ${CMAKE_PROJECT_NAME}-${PACKAGE_VERSION})
+set(SO_VERSION      ${VERSION_MAJOR}.${VERSION_MINOR})
+set(PACKAGE_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
+set(K_CONFIG_ARCH ${CMAKE_SYSTEM})
+set(K_CONFIG_OS   ${CMAKE_SYSTEM_NAME})
+set(K_CONFIG_CPU  ${CMAKE_SYSTEM_PROCESSOR})
+set(K_PREFIX ${CMAKE_INSTALL_PREFIX})
+
+set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${INCLUDE_DIRS})
+
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} uppercase_CMAKE_BUILD_TYPE)
+
+if(${CMAKE_BUILD_TYPE} STREQUAL "Compressed")
+	add_definitions(-DNDEBUG)
+	add_definitions(-DUSE_SMALLBUILD)
+endif()
+
+if(UNIX OR CYGWIN)
+	set(K_OSDLLEXT ".so")
+endif()
+
+if(APPLE)
+	set(K_OSDLLEXT ".dylib")
+endif(APPLE)
+
+if(MSVC OR MINGW)
+	set(K_OSDLLEXT ".dll")
+endif()
 
 find_library(HAVE_LIBDL NAMES dl)
 find_library(HAVE_LIBM  NAMES m)
@@ -180,12 +174,6 @@ endif(UNIX)
 if(APPLE)
 	set(_HEADERS ${_HEADERS} mach-o/dyld.h)
 endif(APPLE)
-
-if(CYGWIN)
-endif(CYGWIN)
-
-if(MSVC)
-endif(MSVC)
 
 check_symbol_exists(posix_memalign "${_HEADERS}" HAVE_POSIX_MEMALIGN)
 check_symbol_exists(memalign       "${_HEADERS}" HAVE_MEMALIGN)
@@ -215,7 +203,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
 
 set(ExtraLibs)
 if(HAVE_LIBDL)
-set(ExtraLibs ${ExtraLibs} ${HAVE_LIBDL})
+	set(ExtraLibs ${ExtraLibs} ${HAVE_LIBDL})
 endif(HAVE_LIBDL)
 
 macro(POP _STR _DELIM _RESULT)
@@ -258,9 +246,6 @@ macro(add_konoha_test test_name test_file)
 			add_test_with_property(${test_name} --test-with ${test_file})
 		endif(NOT test_name MATCHES "Shell")
 	endif(test_name MATCHES "Stress")
-	if(TEST_IJIT)
-		add_test_with_property(ijit:${test_name} -Iijit --test-with ${test_file})
-	endif(TEST_IJIT)
 endmacro(add_konoha_test test_name test_file)
 
 file(GLOB_RECURSE test_files ${CMAKE_CURRENT_SOURCE_DIR}/test/*.k)
@@ -270,19 +255,22 @@ foreach(f ${test_files})
 	add_konoha_test(${test_name} ${f})
 endforeach(f ${test_files})
 
+macro(SET_CXX_PROPERTY_IF_MSVC TARGET)
+	if(MSVC)
+		foreach(arg ${ARGN})
+			set_source_files_properties(${arg} PROPERTIES LANGUAGE CXX )
+		endforeach(arg ${ARGN})
+		set_target_properties(${TARGET} PROPERTIES LINKER_LANGUAGE CXX )
+	endif(MSVC)
+endmacro(SET_CXX_PROPERTY_IF_MSVC TARGET)
+
 add_library(minikonoha SHARED ${RUNTIME} ${GC} ${PARSER} ${VM})
-if(MSVC)
-	set_source_files_properties(${RUNTIME} ${GC} ${PARSER} ${VM} PROPERTIES LANGUAGE CXX )
-	set_target_properties (minikonoha PROPERTIES LINKER_LANGUAGE CXX )
-endif(MSVC)
+SET_CXX_PROPERTY_IF_MSVC(minikonoha ${RUNTIME} ${GC} ${PARSER} ${VM})
 target_link_libraries(minikonoha ${ExtraLibs})
 set(ExtraLibs ${ExtraLibs} minikonoha)
 
 add_executable(minikonoha_bin platform/shell/command.c)
-if(MSVC)
-	set_source_files_properties(platform/shell/command.c PROPERTIES LANGUAGE CXX )
-	set_target_properties (minikonoha_bin PROPERTIES LINKER_LANGUAGE CXX )
-endif(MSVC)
+SET_CXX_PROPERTY_IF_MSVC(minikonoha_bin platform/shell/command.c)
 target_link_libraries(minikonoha_bin ${ExtraLibs})
 set_target_properties(minikonoha_bin PROPERTIES OUTPUT_NAME minikonoha)
 
@@ -297,8 +285,8 @@ endmacro()
 macro(create_package_project _PKGNAME)
 	project(${_PKGNAME})
 	if(TEST_COVERAGE)
-	add_definitions(-fprofile-arcs -ftest-coverage)
-	set(PACKAGE_EXTRA_LIBRARY ${PACKAGE_EXTRA_LIBRARY} -fprofile-arcs -ftest-coverage)
+		add_definitions(-fprofile-arcs -ftest-coverage)
+		set(PACKAGE_EXTRA_LIBRARY ${PACKAGE_EXTRA_LIBRARY} -fprofile-arcs -ftest-coverage)
 	endif(TEST_COVERAGE)
 	file(GLOB_RECURSE test_files ${CMAKE_CURRENT_SOURCE_DIR}/test/*.k)
 	foreach(f ${test_files})
@@ -328,18 +316,16 @@ macro(create_package_project _PKGNAME)
 	list(LENGTH PACKAGE_SOURCE_CODE LEN)
 	if(${LEN} GREATER 0)
 		add_library(${LIB} SHARED ${PACKAGE_SOURCE_CODE})
-		if(MSVC)
-			set_source_files_properties(${PACKAGE_SOURCE_CODE} PROPERTIES LANGUAGE CXX )
-			set_target_properties (${LIB} PROPERTIES LINKER_LANGUAGE CXX )
-		endif(MSVC)
+		SET_CXX_PROPERTY_IF_MSVC(${LIB} ${PACKAGE_SOURCE_CODE})
 		set_target_properties(${LIB} PROPERTIES PREFIX "")
 		if(PACKAGE_EXTRA_LIBRARY)
-		target_link_libraries(${LIB} ${PACKAGE_EXTRA_LIBRARY})
+			target_link_libraries(${LIB} ${PACKAGE_EXTRA_LIBRARY})
 		endif(PACKAGE_EXTRA_LIBRARY)
 		install(TARGETS ${LIB} DESTINATION ${_KONOHA_PACKAGE_DIR})
 	endif(${LEN} GREATER 0)
 	if(PACKAGE_SCRIPT_CODE)
-		install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${PACKAGE_SCRIPT_CODE} DESTINATION ${_KONOHA_PACKAGE_DIR})
+		install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${PACKAGE_SCRIPT_CODE}
+			DESTINATION ${_KONOHA_PACKAGE_DIR})
 		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_SCRIPT_CODE}
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			${CMAKE_CURRENT_SOURCE_DIR}/${PACKAGE_SCRIPT_CODE}
@@ -370,10 +356,7 @@ endforeach()
 
 macro(add_clib_test test_name)
 	add_executable(${test_name} ${ARGN})
-	if(MSVC)
-		set_source_files_properties(${ARGN} PROPERTIES LANGUAGE CXX )
-		set_target_properties (${test_name} PROPERTIES LINKER_LANGUAGE CXX )
-	endif(MSVC)
+	SET_CXX_PROPERTY_IF_MSVC(${test_name} ${ARGN})
 	target_link_libraries(${test_name} ${ExtraLibs})
 	add_test(Clib/Release/${test_name} ${test_name})
 	set_tests_properties(Clib/Release/${test_name} PROPERTIES TIMEOUT 5)
@@ -442,13 +425,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/konoha.sh
 	RENAME konoha
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-# Install files
-# ${CMAKE_INSTALL_PREFIX}/bin/konoha
-# ${CMAKE_INSTALL_PREFIX}/bin/minikonoha
-# ${CMAKE_INSTALL_PREFIX}/lib/libminikonoha.dylib
-# ${CMAKE_INSTALL_PREFIX}/lib/minikonoha/${SO_VERSION}/package/konoha.while/while_glue.{k,dylib}
-# ${CMAKE_INSTALL_PREFIX}/include/minikonoha/*.h
-
 install(TARGETS minikonoha minikonoha_bin
 		RUNTIME DESTINATION bin
 		LIBRARY DESTINATION lib${LIB_SUFFIX}
@@ -457,7 +433,7 @@ install(TARGETS minikonoha minikonoha_bin
 install(DIRECTORY include/ DESTINATION include 
 		FILES_MATCHING
 		PATTERN "*.h"
-		PATTERN ".svn" EXCLUDE
+		PATTERN ".git" EXCLUDE
 		)
 
 MESSAGE(STATUS)

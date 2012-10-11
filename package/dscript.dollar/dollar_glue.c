@@ -42,26 +42,26 @@ static kbool_t dollar_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstT
 
 // --------------------------------------------------------------------------
 
-//static kExpr* ParseExpr_DollarSymbol(KonohaContext *kctx, kStmt *stmt, kToken *tk)
+//static kExpr* Expression_DollarSymbol(KonohaContext *kctx, kStmt *stmt, kToken *tk)
 //{
 //
 //}
 
 
-static KMETHOD ParseExpr_dollar(KonohaContext *kctx, KonohaStack *sfp)
+static KMETHOD Expression_dollar(KonohaContext *kctx, KonohaStack *sfp)
 {
-	VAR_ParseExpr(stmt, tokenList, beginIdx, currentIdx, endIdx);
+	VAR_Expression(stmt, tokenList, beginIdx, currentIdx, endIdx);
 	DBG_ASSERT(beginIdx == currentIdx);
 	if(currentIdx + 1 < endIdx) {
 		kToken *nextToken = tokenList->tokenItems[currentIdx+1];
 		DBG_P("nextToken='%s'", S_text(nextToken->text));
 //		if(nextToken->resolvedSyntaxInfo->keyword == KW_SymbolPattern) {
-//			RETURN_(ParseExpr_DollarSymbol(kctx, stmt, nextToken));
+//			RETURN_(Expression_DollarSymbol(kctx, stmt, nextToken));
 //		}
 
 	}
 //	KonohaClass *foundClass = NULL;
-//	int nextIdx = SUGAR kStmt_parseTypePattern(kctx, stmt, Stmt_nameSpace(stmt), tokenList, beginIdx + 1, endIdx, &foundClass);
+//	int nextIdx = SUGAR TokenUtils_parseTypePattern(kctx, stmt, Stmt_nameSpace(stmt), tokenList, beginIdx + 1, endIdx, &foundClass);
 //	if(nextIdx != -1 && nextIdx < kArray_size(tokenList)) {
 //		kToken *nextTokenAfterClassName = tokenList->tokenItems[nextIdx];
 ////		if (ct->typeId == TY_void) {
@@ -91,7 +91,7 @@ static KMETHOD ParseExpr_dollar(KonohaContext *kctx, KonohaStack *sfp)
 static kbool_t dollar_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
-		{ SYM_("$"), 0, NULL, 0, C_PRECEDENCE_CALL, NULL, ParseExpr_dollar, NULL, NULL, NULL, },
+		{ SYM_("$"), 0, NULL, 0, Precedence_CStyleCALL, NULL, Expression_dollar, NULL, NULL, NULL, },
 		{ KW_END, },
 	};
 	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
