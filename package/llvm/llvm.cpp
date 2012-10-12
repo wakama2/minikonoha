@@ -104,9 +104,9 @@
 #undef PACKAGE_NAME
 #undef PACKAGE_STRING
 #undef PACKAGE_VERSION
-#include <minikonoha/minikonoha.h>
-#include <minikonoha/sugar.h>
-#include <minikonoha/float.h>
+#include "minikonoha/minikonoha.h"
+#include "minikonoha/sugar.h"
+#include "minikonoha/float.h"
 #include <stdio.h>
 
 struct kRawPtr {
@@ -4602,7 +4602,7 @@ static void kmodllvm_setup(KonohaContext *kctx, struct KonohaModule *def, int ne
 	(void)kctx;(void)def;(void)newctx;
 }
 
-static void kmodllvm_reftrace(KonohaContext *kctx, struct KonohaModule *baseh)
+static void kmodllvm_reftrace(KonohaContext *kctx, struct KonohaModule *baseh, kObjectVisitor *visitor)
 {
 	(void)kctx;(void)baseh;
 }

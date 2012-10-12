@@ -130,7 +130,7 @@ static KMETHOD TokenFunc_SingleQuotedChar(KonohaContext *kctx, KonohaStack *sfp)
 		}
 		if(ch == '\'' && prev != '\\') {
 			if(IS_NOTNULL(tk)) {
-				KSETv(tk, tk->text, KLIB new_kString(kctx, source + 1, (pos-2), 0));
+				KFieldSet(tk, tk->text, KLIB new_kString(kctx, source + 1, (pos-2), 0));
 				tk->unresolvedTokenType = SYM_("$SingleQuotedChar");
 			}
 			RETURNi_(pos);
@@ -148,7 +148,7 @@ static KMETHOD TypeCheck_SingleQuotedChar(KonohaContext *kctx, KonohaStack *sfp)
 	VAR_TypeCheck(stmt, expr, gma, reqty);
 	kToken *tk = expr->termToken;
 	if (S_size(tk->text) == 1) {
-		int ch = S_text(tk->text)[0];  // FIXME: unsupported escape sequence
+		int ch = S_text(tk->text)[0];
 		RETURN_(SUGAR kExpr_setUnboxConstValue(kctx, expr, TY_int, ch));
 	}
 	RETURN_(K_NULLEXPR);

@@ -89,7 +89,7 @@ static void Curl_free(KonohaContext *kctx, kObject *o)
 	}
 }
 
-static void Curl_reftrace(KonohaContext *kctx, kObject *o)
+static void Curl_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	struct _kCurl *c = (struct _kCurl*)o;
 	BEGIN_REFTRACE(1);
@@ -226,7 +226,7 @@ static KMETHOD Curl_setOpt(KonohaContext *kctx, KonohaStack *sfp)
 	case CURLOPT_WRITEHEADER:
 		if(IS_Bytes(sfp[2].o)){
 			struct _kCurl *c = (struct _kCurl *)sfp[0].o;
-			KSETv(c, c->bytes, (struct _kBytes *)sfp[2].ba);
+			KFieldSet(c, c->bytes, (struct _kBytes *)sfp[2].ba);
 			c->lctx = kctx;
 			curl_easy_setopt(curl, curlopt, (void *)c);
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_Bytes);

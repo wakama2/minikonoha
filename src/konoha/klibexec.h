@@ -293,7 +293,7 @@ static void Kmap_remove(KUtilsHashMap* kmap, KUtilsHashMapEntry *oe)
 static void Kmap_addStringUnboxValue(KonohaContext *kctx, KUtilsHashMap *kmp, uintptr_t hcode, kString *stringKey, uintptr_t unboxValue)
 {
 	KUtilsHashMapEntry *e = KLIB Kmap_newEntry(kctx, kmp, hcode);
-	KINITv(e->stringKey, stringKey);
+	KUnsafeFieldInit(e->stringKey, stringKey);
 	e->unboxValue = unboxValue;
 }
 
@@ -386,10 +386,10 @@ void KONOHA_freeObjectField(KonohaContext *kctx, kObjectVar *o)
 	ct->free(kctx, o);
 }
 
-void KONOHA_reftraceObject(KonohaContext *kctx, kObject *o)
+void KONOHA_reftraceObject(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	unsigned map_size;
-	O_ct(o)->reftrace(kctx, o);
+	O_ct(o)->reftrace(kctx, o, visitor);
 	map_size = protomap_size((Kprotomap_t *)o->h.kvproto);
 	if (map_size) {
 		protomap_iterator itr = {0};
@@ -488,7 +488,7 @@ static kbool_t KonohaRuntime_tryCallMethod(KonohaContext *kctx, KonohaStack *sfp
 	memcpy(&lbuf, runtime->evaljmpbuf, sizeof(jmpbuf_i));
 	runtime->jump_bottom = sfp;
 	runtime->thrownScriptLine = 0;
-	KSETv_AND_WRITE_BARRIER(NULL, runtime->optionalErrorMessage, TS_EMPTY, GC_NO_WRITE_BARRIER);
+	KUnsafeFieldSet(runtime->optionalErrorMessage, TS_EMPTY);
 	kbool_t result = true;
 	int jumpResult;
 	INIT_GCSTACK();
@@ -513,8 +513,7 @@ static void KonohaRuntime_raise(KonohaContext *kctx, int symbol, KonohaStack *sf
 	if(runtime->evaljmpbuf != NULL) {
 		runtime->thrownScriptLine = pline;
 		if(optionalErrorMessage != NULL) {
-			//KSETv(K_NULL, runtime->optionalErrorMessage, optionalErrorMessage);
-			KSETv_AND_WRITE_BARRIER(NULL, runtime->optionalErrorMessage, optionalErrorMessage, GC_NO_WRITE_BARRIER);
+			KUnsafeFieldSet(runtime->optionalErrorMessage, optionalErrorMessage);
 		}
 		PLATAPI longjmp_i(*runtime->evaljmpbuf, symbol);  // in setjmp 0 means good
 	}
@@ -523,27 +522,8 @@ static void KonohaRuntime_raise(KonohaContext *kctx, int symbol, KonohaStack *sf
 
 /* ------------------------------------------------------------------------ */
 
-// Don't export KONOHA_reftail to packages
-// Don't include KONOHA_reftail in shared header files  (kimio)
-
-static kObjectVar** KONOHA_reftail(KonohaContext *kctx, size_t size)
-{
-	KonohaStackRuntimeVar *stack = kctx->stack;
-	size_t ref_size = stack->reftail - stack->ref.refhead;
-	if(stack->ref.bytemax/sizeof(void*) < size + ref_size) {
-		KLIB Karray_expand(kctx, &stack->ref, (size + ref_size) * sizeof(kObject*));
-		stack->reftail = stack->ref.refhead + ref_size;
-	}
-	kObjectVar **reftail = stack->reftail;
-	stack->reftail = NULL;
-	return reftail;
-}
-
-// -------------------------------------------------------------------------
-
 static void klib_init(KonohaLibVar *l)
 {
-	l->Kobject_reftail = KONOHA_reftail;
 	l->Karray_init   = Karray_init;
 	l->Karray_resize = Karray_resize;
 	l->Karray_expand = Karray_expand;

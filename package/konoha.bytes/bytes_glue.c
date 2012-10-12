@@ -88,7 +88,7 @@ static void kmodiconv_setup(KonohaContext *kctx, struct KonohaModule *def, int n
 {
 }
 
-static void kmodiconv_reftrace(KonohaContext *kctx, struct KonohaModule *baseh)
+static void kmodiconv_reftrace(KonohaContext *kctx, struct KonohaModule *baseh, kObjectVisitor *visitor)
 {
 }
 
@@ -336,7 +336,7 @@ static KMETHOD TokenFunc_SingleQuotedChar(KonohaContext *kctx, KonohaStack *sfp)
 		}
 		if(ch == '\'' && prev != '\\') {
 			if(IS_NOTNULL(tk)) {
-				KSETv(tk, tk->text, KLIB new_kString(kctx, source + 1, (pos-2), 0));
+				KFieldSet(tk, tk->text, KLIB new_kString(kctx, source + 1, (pos-2), 0));
 				tk->unresolvedTokenType = SYM_("$SingleQuotedChar");
 			}
 			RETURNi_(pos);

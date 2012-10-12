@@ -64,7 +64,7 @@ static void Person_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBu
 	KLIB Kwb_printf(kctx, wb, KINT_FMT, p->age);
 }
 
-static void Person_reftrace(KonohaContext *kctx, kObject *o)
+static void Person_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	/* Garbage collector (GC) cannot recognize in which position of the field
 	 * an object exists. The function tells to GC which object should be traced. */
@@ -88,7 +88,7 @@ static KMETHOD Person_new(KonohaContext *kctx, KonohaStack *sfp)
 	kint_t   age  = sfp[2].intValue;
 	/* If you want to determine the type of the return value,
 	 * please check O_ct(sfp[K_RTNIDX].o) . */
-	KSETv(p, p->name, name);
+	KFieldSet(p, p->name, name);
 	p->age = age;
 	RETURN_(p);
 }

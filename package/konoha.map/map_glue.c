@@ -52,6 +52,7 @@ static void kMap_init(KonohaContext *kctx, kObject *o, void *conf)
 
 static void MapUnboxEntry_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)
 {
+	kObjectVisitor *visitor = (kObjectVisitor *) thunk;
 	BEGIN_REFTRACE(1);
 	KREFTRACEv(p->stringKey);
 	END_REFTRACE();
@@ -59,20 +60,21 @@ static void MapUnboxEntry_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, v
 
 static void MapObjectEntry_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)
 {
+	kObjectVisitor *visitor = (kObjectVisitor *) thunk;
 	BEGIN_REFTRACE(2);
 	KREFTRACEn(p->stringKey);
 	KREFTRACEv(p->objectValue);
 	END_REFTRACE();
 }
 
-static void kMap_reftrace(KonohaContext *kctx, kObject *o)
+static void kMap_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kMap *map = (kMap*)o;
 	if(TY_isUnbox(O_p0(map))) {
-		KLIB Kmap_each(kctx, map->map, NULL, MapUnboxEntry_reftrace);
+		KLIB Kmap_each(kctx, map->map, (void *)visitor, MapUnboxEntry_reftrace);
 	}
 	else {
-		KLIB Kmap_each(kctx, map->map, NULL, MapObjectEntry_reftrace);
+		KLIB Kmap_each(kctx, map->map, (void *)visitor, MapObjectEntry_reftrace);
 	}
 }
 
@@ -112,9 +114,9 @@ static KUtilsHashMapEntry* kMap_getEntry(KonohaContext *kctx, kMap *m, kString *
 	}
 	if(isNewIfNULL) {
 		e = KLIB Kmap_newEntry(kctx, m->map, hcode);
-		KINITv(e->stringKey, key);
+		KUnsafeFieldInit(e->stringKey, key);
 		if(!Map_isUnboxData(m)) {
-			KINITv(e->objectValue, K_NULL);
+			KUnsafeFieldInit(e->objectValue, K_NULL);
 		}
 		return e;
 	}
@@ -153,7 +155,7 @@ static KMETHOD Map_set(KonohaContext *kctx, KonohaStack *sfp)
 		e->unboxValue = sfp[2].unboxValue;
 	}
 	else {
-		KSETv(m, e->objectValue, sfp[2].asObject);
+		KFieldSet(m, e->objectValue, sfp[2].asObject);
 	}
 	RETURNvoid_();
 }
@@ -181,7 +183,7 @@ static KMETHOD Map_keys(KonohaContext *kctx, KonohaStack *sfp)
 	kMap *m = (kMap*)sfp[0].asObject;
 	KonohaClass *cArray = CT_p0(kctx, CT_Array, O_p0(m));
 	kArray *a = (kArray*)(KLIB new_kObject(kctx, cArray, m->map->size));
-	KSETv_AND_WRITE_BARRIER(NULL, sfp[K_RTNIDX].asArray, a, GC_NO_WRITE_BARRIER);
+	KUnsafeFieldSet(sfp[K_RTNIDX].asArray, a);
 	KLIB Kmap_each(kctx, m->map, (void*)a, MapEntry_appendKey);
 	RETURN_DefaultObjectValue();
 }

@@ -190,7 +190,7 @@ KMETHOD knh_ResultSet_initColumn(KonohaContext *kctx, kResultSet *o, size_t colu
 		rs->column = (struct _kDBschema*)KMALLOC(sizeof(kDBschema) * column_size);
 		for(i = 0; i < column_size; i++) {
 			rs->column[i].type = TY_String;
-			KINITv(o->column[i].name, TS_EMPTY);
+			KFieldInit(o, o->column[i].name, TS_EMPTY);
 			rs->column[i].start = 0;
 			rs->column[i].len = 0;
 		}
@@ -352,7 +352,7 @@ KMETHOD ResultSet_setNULL(KonohaContext *kctx, kResultSet *o, size_t n)
 
 /* ------------------------------------------------------------------------ */
 
-//static void Connection_reftrace(KonohaContext *kctx, void *po)
+//static void Connection_reftrace(KonohaContext *kctx, void *po, kObjectVisitor *visitor)
 //{
 //	kConnection *o = (kConnection *)po;
 //	KNH_ADDREF(ctx, o->urn);

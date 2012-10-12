@@ -38,7 +38,7 @@ static void kObject_init(KonohaContext *kctx, kObject *o, void *conf)
 	of->fieldUnboxItems[0] = 0;
 }
 
-static void kObject_reftrace(KonohaContext *kctx, kObject *o)
+static void kObject_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kObject *of = (kObject*)o;
 	KonohaClass *ct = O_ct(of);
@@ -104,7 +104,7 @@ static void kObject_writeToBuffer(KonohaContext *kctx, kObject *o, int isDelim, 
 			sfp[pos].unboxValue = O_unbox(o);
 		}
 		else {
-			KSETv_AND_WRITE_BARRIER(NULL, sfp[pos].asObject, o, GC_NO_WRITE_BARRIER);
+			KUnsafeFieldSet(sfp[pos].asObject, o);
 		}
 		O_ct(o)->p(kctx, sfp, pos, wb);
 	}
@@ -292,7 +292,7 @@ static void kArray_init(KonohaContext *kctx, kObject *o, void *conf)
 	}
 }
 
-static void kArray_reftrace(KonohaContext *kctx, kObject *o)
+static void kArray_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kArray *a = (kArray*)o;
 	if(!kArray_isUnboxData(a)) {
@@ -346,7 +346,7 @@ static void kArray_add(KonohaContext *kctx, kArray *o, kObject *value)
 	struct _kAbstractArray *a = (struct _kAbstractArray*)o;
 	kArray_ensureMinimumSize(kctx, a, asize+1);
 	DBG_ASSERT(a->a.objectItems[asize] == NULL);
-	KINITp(a, a->a.objectItems[asize], value);
+	KFieldInit(a, a->a.objectItems[asize], value);
 	a->a.bytesize = (asize+1) * sizeof(void*);
 }
 
@@ -360,7 +360,7 @@ static void kArray_insert(KonohaContext *kctx, kArray *o, size_t n, kObject *v)
 	else {
 		kArray_ensureMinimumSize(kctx, a, asize+1);
 		memmove(a->a.objectItems+(n+1), a->a.objectItems+n, sizeof(kObject*) * (asize - n));
-		KINITp(a, a->a.objectItems[n], v);
+		KFieldInit(a, a->a.objectItems[n], v);
 		a->a.bytesize = (asize+1) * sizeof(void*);
 	}
 }
@@ -469,7 +469,7 @@ static kparamid_t Kmap_getparamid(KonohaContext *kctx, KUtilsHashMap *kmp, kArra
 	uintptr_t paramid = kArray_size(list);
 	KLIB kArray_add(kctx, list, pa);
 	e = KLIB Kmap_newEntry(kctx, kmp, hcode);
-	KINITv(e->paramKey, pa);
+	KUnsafeFieldInit(e->paramKey, pa);
 	e->unboxValue = paramid;
 	return (kparamid_t)paramid;
 }
@@ -501,12 +501,12 @@ static void kMethod_init(KonohaContext *kctx, kObject *o, void *conf)
 {
 	kMethodVar *mtd = (kMethodVar*)o;
 	bzero(&mtd->invokeMethodFunc, sizeof(kMethod) - sizeof(KonohaObjectHeader));
-	KINITv(mtd->sourceCodeToken, (struct kToken*)K_NULL);
-	KINITv(mtd->kcode, K_NULL);
+	KFieldInit(mtd, mtd->sourceCodeToken, (struct kToken*)K_NULL);
+	KFieldInit(mtd, mtd->kcode, K_NULL);
 	mtd->serialNumber = methodSerialNumber++;
 }
 
-static void kMethod_reftrace(KonohaContext *kctx, kObject *o)
+static void kMethod_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	BEGIN_REFTRACE(3);
 	kMethod *mtd = (kMethod*)o;
@@ -551,17 +551,17 @@ static void kNameSpace_init(KonohaContext *kctx, kObject *o, void *conf)
 	bzero(&ns->parentNULL, sizeof(kNameSpace) - sizeof(KonohaObjectHeader));
 	ns->syntaxOption = kNameSpace_DefaultSyntaxOption;
 	if(conf != NULL) {
-		KINITv(ns->parentNULL, (kNameSpace*)conf);
+		KFieldInit(ns, ns->parentNULL, (kNameSpace*)conf);
 		ns->packageId     = ns->parentNULL->packageId;
 		ns->syntaxOption  = ns->parentNULL->syntaxOption;
 	}
-	KINITv(ns->methodList, K_EMPTYARRAY);
+	KFieldInit(ns, ns->methodList, K_EMPTYARRAY);
 }
 
-static void kNameSpace_reftrace(KonohaContext *kctx, kObject *o)
+static void kNameSpace_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kNameSpace *ns = (kNameSpace*)o;
-	KLIB kNameSpace_reftraceSugarExtension(kctx, ns);
+	KLIB kNameSpace_reftraceSugarExtension(kctx, ns, visitor);
 	size_t i, size = kNameSpace_sizeConstTable(ns);
 	BEGIN_REFTRACE(size + 5);
 	for(i = 0; i < size; i++) {
@@ -590,12 +590,12 @@ static void kNameSpace_free(KonohaContext *kctx, kObject *o)
 static void Func_init(KonohaContext *kctx, kObject *o, void *conf)
 {
 	kFuncVar *fo = (kFuncVar*)o;
-	KINITv(fo->self, K_NULL);
-	KINITv(fo->mtd, conf == NULL ? KNULL(Method) : (kMethod*)conf);
+	KFieldInit(fo, fo->self, K_NULL);
+	KFieldInit(fo, fo->mtd, conf == NULL ? KNULL(Method) : (kMethod*)conf);
 	fo->adhocKeyForTokenFunc = 0;
 }
 
-static void Func_reftrace(KonohaContext *kctx, kObject *o)
+static void Func_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	BEGIN_REFTRACE(2);
 	kFunc *fo = (kFunc*)o;
@@ -636,7 +636,7 @@ static void DEFAULT_init(KonohaContext *kctx, kObject *o, void *conf)
 	(void)kctx;(void)o;(void)conf;
 }
 
-static void DEFAULT_reftrace(KonohaContext *kctx, kObject *o)
+static void DEFAULT_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	(void)kctx;(void)o;
 }
@@ -684,7 +684,7 @@ static kObject* DEFAULT_fnullinit(KonohaContext *kctx, KonohaClass *ct)
 {
 	assert(ct->defaultValueAsNull == NULL);
 	DBG_P("creating new nulval for %s", CT_t(ct));
-	KINITv(((KonohaClassVar*)ct)->defaultValueAsNull, KLIB new_kObject(kctx, ct, 0));
+	KUnsafeFieldInit(((KonohaClassVar*)ct)->defaultValueAsNull, KLIB new_kObject(kctx, ct, 0));
 	kObject_set(NullObject, ct->defaultValueAsNull, true);
 	((KonohaClassVar*)ct)->fnull = DEFAULT_fnull;
 	return ct->defaultValueAsNull;
@@ -757,7 +757,7 @@ static KonohaClass *KonohaClass_extendedBody(KonohaContext *kctx, KonohaClass *c
 			KonohaClassVar *newct = new_KonohaClass(kctx, bct, NULL, NOPLINE);
 			newct->cflag |= kClass_Private;
 			newct->cstruct_size = ct->cstruct_size * 2;
-			KINITv(newct->methodList, ct->methodList);
+			KUnsafeFieldInit(newct->methodList, ct->methodList);
 			((KonohaClassVar*)ct)->searchSimilarClassNULL = (KonohaClass*)newct;
 		}
 		ct = ct->searchSimilarClassNULL;
@@ -828,7 +828,7 @@ static KonohaClass *KonohaClass_Generics(KonohaContext *kctx, KonohaClass *ct, k
 	KonohaClassVar *newct = new_KonohaClass(kctx, ct0, NULL, NOPLINE);
 	newct->cparamdom = paramdom;
 	newct->p0 = isNotFuncClass ? p[0].ty : rtype;
-	KINITv(newct->methodList, K_EMPTYARRAY);
+	KUnsafeFieldInit(newct->methodList, K_EMPTYARRAY);
 	if(newct->searchSuperMethodClassNULL == NULL) {
 		newct->searchSuperMethodClassNULL = ct0;
 	}
@@ -841,7 +841,7 @@ static kString* KonohaClass_shortName(KonohaContext *kctx, KonohaClass *ct)
 {
 	if(ct->shortNameNULL == NULL) {
 		if(ct->cparamdom == 0 && ct->baseTypeId != TY_Func) {
-			KINITv(((KonohaClassVar*)ct)->shortNameNULL, SYM_s(ct->classNameSymbol));
+			KUnsafeFieldInit(((KonohaClassVar*)ct)->shortNameNULL, SYM_s(ct->classNameSymbol));
 		}
 		else {
 			size_t i, c = 0;
@@ -866,7 +866,7 @@ static kString* KonohaClass_shortName(KonohaContext *kctx, KonohaClass *ct)
 			}
 			KLIB Kwb_write(kctx, &wb, "]", 1);
 			const char *text = Kwb_top(kctx, &wb, 1);
-			KINITv(((KonohaClassVar*)ct)->shortNameNULL, new_kString(kctx, text, Kwb_bytesize(&wb), StringPolicy_ASCII));
+			KUnsafeFieldInit(((KonohaClassVar*)ct)->shortNameNULL, new_kString(kctx, text, Kwb_bytesize(&wb), StringPolicy_ASCII));
 			KLIB Kwb_free(&wb);
 		}
 	}
@@ -885,7 +885,7 @@ static void KonohaClass_setName(KonohaContext *kctx, KonohaClassVar *ct, kfileli
 //	KUnlock(kctx->share->classTableMutex);
 	KLIB Kreportf(kctx, DebugTag, pline, "new class %s.%s", PackageId_t(ct->packageId), SYM_t(ct->classNameSymbol));
 	if(ct->methodList == NULL) {
-		KINITv(ct->methodList, K_EMPTYARRAY);
+		KUnsafeFieldInit(ct->methodList, K_EMPTYARRAY);
 		if(ct->typeId > TY_Object) {
 			ct->searchSuperMethodClassNULL = CT_(ct->superTypeId);
 		}
@@ -1099,27 +1099,27 @@ static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	KLIB Karray_init(kctx, &share->classTable, K_TYTABLE_INIT * sizeof(KonohaClass));
 	loadInitStructData(kctx);
 	share->longClassNameMapNN = KLIB Kmap_init(kctx, 0);
-	KINITv(share->fileidList, new_(StringArray, 8));
+	KUnsafeFieldInit(share->fileidList, new_(StringArray, 8));
 	share->fileidMapNN = KLIB Kmap_init(kctx, 0);
-	KINITv(share->packageIdList, new_(StringArray, 8));
+	KUnsafeFieldInit(share->packageIdList, new_(StringArray, 8));
 	share->packageIdMapNN = KLIB Kmap_init(kctx, 0);
 	share->packageMapNO = KLIB Kmap_init(kctx, 0);
 	share->rootContext = kctx;
-	KINITv(share->childContextList, new_(Array, 0));
+	KUnsafeFieldInit(share->childContextList, new_(Array, 0));
 
-	KINITv(share->symbolList, new_(StringArray, 32));
+	KUnsafeFieldInit(share->symbolList, new_(StringArray, 32));
 	share->symbolMapNN = KLIB Kmap_init(kctx, 0);
 	share->paramMapNN = KLIB Kmap_init(kctx, 0);
-	KINITv(share->paramList, new_(Array, 32));
+	KUnsafeFieldInit(share->paramList, new_(Array, 32));
 	share->paramdomMapNN = KLIB Kmap_init(kctx, 0);
-	KINITv(share->paramdomList, new_(Array, 32));
+	KUnsafeFieldInit(share->paramdomList, new_(Array, 32));
 	//
-	KINITv(share->constNull, new_(Object, NULL));
+	KUnsafeFieldInit(share->constNull, new_(Object, NULL));
 	kObject_set(NullObject, share->constNull, true);
-	KINITv(share->constTrue,   new_(Boolean, 1));
-	KINITv(share->constFalse,  new_(Boolean, 0));
-	KINITv(share->emptyString, new_(String, NULL));
-	KINITv(share->emptyArray,  new_(Array, 0));
+	KUnsafeFieldInit(share->constTrue,   new_(Boolean, 1));
+	KUnsafeFieldInit(share->constFalse,  new_(Boolean, 0));
+	KUnsafeFieldInit(share->emptyString, new_(String, NULL));
+	KUnsafeFieldInit(share->emptyArray,  new_(Array, 0));
 
 	Kparam(kctx, TY_void, 0, NULL);  // PARAM_void
 	Kparamdom(kctx, 0, NULL);        // PARAMDOM_void
@@ -1143,6 +1143,7 @@ static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 
 static void constPoolMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)
 {
+	kObjectVisitor *visitor = (kObjectVisitor *) thunk;
 	BEGIN_REFTRACE(1);
 	KREFTRACEv(p->objectValue);
 	END_REFTRACE();
@@ -1150,13 +1151,14 @@ static void constPoolMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, vo
 
 static void packageMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)
 {
+	kObjectVisitor *visitor = (kObjectVisitor *) thunk;
 	KonohaPackage *pack = (KonohaPackage*)p->unboxValue;
 	BEGIN_REFTRACE(1);
 	KREFTRACEn(pack->packageNameSpace);
 	END_REFTRACE();
 }
 
-static void KonohaRuntime_reftrace(KonohaContext *kctx, KonohaContextVar *ctx)
+static void KonohaRuntime_reftrace(KonohaContext *kctx, KonohaContextVar *ctx, kObjectVisitor *visitor)
 {
 	KonohaRuntime *share = ctx->share;
 	KonohaClass **cts = (KonohaClass**)kctx->share->classTable.classItems;
@@ -1171,10 +1173,10 @@ static void KonohaRuntime_reftrace(KonohaContext *kctx, KonohaContextVar *ctx)
 			END_REFTRACE();
 		}
 		if (ct->constPoolMapNO != NULL) {
-			KLIB Kmap_each(kctx, ct->constPoolMapNO, NULL, constPoolMap_reftrace);
+			KLIB Kmap_each(kctx, ct->constPoolMapNO, (void *) visitor, constPoolMap_reftrace);
 		}
 	}
-	KLIB Kmap_each(kctx, share->packageMapNO, NULL, packageMap_reftrace);
+	KLIB Kmap_each(kctx, share->packageMapNO, (void *) visitor, packageMap_reftrace);
 	BEGIN_REFTRACE(11);
 	KREFTRACEv(share->childContextList);
 	KREFTRACEv(share->constNull);

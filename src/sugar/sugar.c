@@ -79,7 +79,7 @@ kstatus_t MODSUGAR_eval(KonohaContext *kctx, const char *script, kfileline_t uli
 /* ------------------------------------------------------------------------ */
 /* [KonohaContext_getSugarContext(kctx)] */
 
-static void SugarContext_reftrace(KonohaContext *kctx, struct KonohaModuleContext *baseh)
+static void SugarContext_reftrace(KonohaContext *kctx, struct KonohaModuleContext *baseh, kObjectVisitor *visitor)
 {
 	SugarContext *base = (SugarContext*)baseh;
 	BEGIN_REFTRACE(4);
@@ -102,17 +102,17 @@ static void SugarModule_setup(KonohaContext *kctx, struct KonohaModule *def, int
 		SugarContext *base = (SugarContext*)KCALLOC(sizeof(SugarContext), 1);
 		base->h.reftrace = SugarContext_reftrace;
 		base->h.free     = SugarContext_free;
-		KINITv(base->preparedTokenList, new_(TokenArray, K_PAGESIZE/sizeof(void*)));
+		KUnsafeFieldInit(base->preparedTokenList, new_(TokenArray, K_PAGESIZE/sizeof(void*)));
 		base->errorMessageCount = 0;
-		KINITv(base->errorMessageList, new_(StringArray, 8));
-		KINITv(base->definedMethodList, new_(MethodArray, 8));
-		KINITv(base->preparedGamma, new_(Gamma, NULL));
+		KUnsafeFieldInit(base->errorMessageList, new_(StringArray, 8));
+		KUnsafeFieldInit(base->definedMethodList, new_(MethodArray, 8));
+		KUnsafeFieldInit(base->preparedGamma, new_(Gamma, NULL));
 		KLIB Karray_init(kctx, &base->errorMessageBuffer, K_PAGESIZE);
 		kctx->modlocal[MOD_sugar] = (KonohaModuleContext*)base;
 	}
 }
 
-static void SugarModule_reftrace(KonohaContext *kctx, struct KonohaModule *baseh)
+static void SugarModule_reftrace(KonohaContext *kctx, struct KonohaModule *baseh, kObjectVisitor *visitor)
 {
 }
 
@@ -179,7 +179,7 @@ void MODSUGAR_init(KonohaContext *kctx, KonohaContextVar *ctx)
 	KLIB Knull(kctx, mod->cToken);
 	KLIB Knull(kctx, mod->cExpr);
 	kStmtVar *NullStmt = (kStmtVar*)KLIB Knull(kctx, mod->cStmt);
-	KSETv(NullStmt, NullStmt->parentBlockNULL, (kBlock*)KLIB Knull(kctx, mod->cBlock));
+	KFieldSet(NullStmt, NullStmt->parentBlockNULL, (kBlock*)KLIB Knull(kctx, mod->cBlock));
 
 	SugarModule_setup(kctx, &mod->h, 0);
 

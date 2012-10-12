@@ -1086,8 +1086,10 @@ static void *tryAlloc(HeapManager *mng, SubHeap *h)
 	prefetch_(temp, 0, 0);
 	bool isEmpty = inc(p, h);
 
+#ifdef USE_GENERATIONAL_GC
 	bitmap_set(&mng->flags, GC_MAJOR_FLAG,
 			(mng->segmentList == NULL && h->freelist == NULL && isEmpty));
+#endif
 	return temp;
 }
 
@@ -1319,6 +1321,9 @@ static kObject *bm_malloc_internal(HeapManager *mng, size_t n)
 	if (temp != NULL)
 		goto L_finaly;
 #ifdef USE_SAFEPOINT_POLICY
+#ifdef USE_GENERATIONAL_GC
+	bitmap_set(&mng->flags, GC_MAJOR_FLAG, 1);
+#endif
 	HeapManager_expandHeap(mng, SUBHEAP_DEFAULT_SEGPOOL_SIZE*2);
 	newSegment(mng, h);
 #else
@@ -1545,7 +1550,7 @@ static void bitmap_mark(bitmap_t bm, Segment *seg, uintptr_t idx, uintptr_t mask
 	}
 }
 
-static void mark_mstack(KonohaContext *kctx, HeapManager *mng, kObject *o, MarkStack *mstack)
+static void mark_mstack(HeapManager *mng, kObject *o, MarkStack *mstack)
 {
 	Segment *seg;
 	int index, klass;
@@ -1571,6 +1576,27 @@ static void mark_mstack(KonohaContext *kctx, HeapManager *mng, kObject *o, MarkS
 	}
 }
 
+typedef struct ObjectGraphTracer {
+	kObjectVisitor base;
+	HeapManager  *mng;
+	MarkStack    *mstack;
+} ObjectGraphTracer;
+
+static void ObjectGraphTracer_visit(kObjectVisitor *visitor, kObject *object)
+{
+	ObjectGraphTracer *tracer = (ObjectGraphTracer *) visitor;
+	mark_mstack(tracer->mng, object, tracer->mstack);
+}
+
+static void ObjectGraphTracer_visitRange(kObjectVisitor *visitor, kObject **begin, kObject **end)
+{
+	ObjectGraphTracer *tracer = (ObjectGraphTracer *) visitor;
+	kObject **itr;
+	for (itr = begin; itr != end; ++itr) {
+		mark_mstack(tracer->mng, *itr, tracer->mstack);
+	}
+}
+
 #ifdef USE_GENERATIONAL_GC
 static void RememberSet_add(kObject *o)
 {
@@ -1586,8 +1612,22 @@ static void RememberSet_add(kObject *o)
 #endif
 	bitmap_set(map+(offset/BITS), offset%BITS, Object_isTenure(o));
 }
+#endif
 
-static void RememberSet_reftrace(KonohaContext *kctx, HeapManager *mng)
+static void Kwrite_barrier(KonohaContext *kctx, kObject *parent)
+{
+#ifdef USE_GENERATIONAL_GC
+	RememberSet_add(parent);
+#endif
+}
+
+static void KupdateObjectField(kObject *parent, kObject *oldValPtr, kObject *newVal)
+{
+	Kwrite_barrier(NULL, parent);
+}
+
+#ifdef USE_GENERATIONAL_GC
+static void RememberSet_reftrace(KonohaContext *kctx, HeapManager *mng, kObjectVisitor *visitor)
 {
 	size_t i;
 	FOR_EACH_ARRAY_(mng->remember_sets, i) {
@@ -1614,7 +1654,7 @@ static void RememberSet_reftrace(KonohaContext *kctx, HeapManager *mng)
 #ifdef DEBUG_WRITE_BARRIER
 					fprintf(stderr, "R %p\n", o);
 #endif
-					KONOHA_reftraceObject(kctx, o);
+					KONOHA_reftraceObject(kctx, o, visitor);
 				}
 				bitmap_reset(m, 0);
 			}
@@ -1624,51 +1664,29 @@ static void RememberSet_reftrace(KonohaContext *kctx, HeapManager *mng)
 
 #endif
 
-static void Kwrite_barrier(KonohaContext *kctx, kObject *parent)
-{
-#ifdef USE_GENERATIONAL_GC
-	RememberSet_add(parent);
-#endif
-}
-
-static void KsetObjectField(kObject *parent, kObjectVar **oldValPtr, kObjectVar *newVal)
-{
-#ifdef USE_GENERATIONAL_GC
-	RememberSet_add(parent);
-#endif
-	*oldValPtr = newVal;
-}
-
-#define context_reset_refs(kctx) kctx->stack->reftail = kctx->stack->ref.refhead
-
 static void bmgc_gc_mark(HeapManager *mng, enum gc_mode mode)
 {
-	long i;
 	KonohaContext *kctx = mng->kctx;
 	MarkStack *mstack = mstack_init(&mng->mstack);
-	KonohaStackRuntimeVar *stack = kctx->stack;
 	kObject *ref = NULL;
+	ObjectGraphTracer tracer = {};
+	tracer.base.fn_visit      = ObjectGraphTracer_visit;
+	tracer.base.fn_visitRange = ObjectGraphTracer_visitRange;
+	tracer.mng    = mng;
+	tracer.mstack = mstack;
 
-	context_reset_refs(kctx);
-	KonohaContext_reftraceAll(kctx);
+	KonohaContext_reftraceAll(kctx, &tracer.base);
 #ifdef USE_GENERATIONAL_GC
 	if (mode & GC_MINOR) {
-		RememberSet_reftrace(kctx, mng);
+		RememberSet_reftrace(kctx, mng, &tracer.base);
 	}
 #endif
-	size_t ref_size = stack->reftail - stack->ref.refhead;
-	goto L_INLOOP;
-	while ((ref = mstack_next(mstack)) != NULL) {
-		context_reset_refs(kctx);
-		KONOHA_reftraceObject(kctx, ref);
-		ref_size = stack->reftail - stack->ref.refhead;
-		if (ref_size > 0) {
-			L_INLOOP:;
-			for (i = ref_size-1; i >= 0; --i) {
-				mark_mstack(kctx, mng, stack->ref.refhead[i], mstack);
-			}
-		}
-	}
+	ref = mstack_next(mstack);
+	if (unlikely(ref == 0))
+		return;
+	do {
+		KONOHA_reftraceObject(kctx, ref, &tracer.base);
+	} while ((ref = mstack_next(mstack)) != NULL);
 }
 
 #define LIST_PUSH(tail, e) do {\
@@ -1729,6 +1747,9 @@ static void bmgc_gc_sweep(HeapManager *mng)
 	}
 
 	if (checkFull) {
+#ifdef USE_GENERATIONAL_GC
+		bitmap_set(&mng->flags, GC_MAJOR_FLAG, 1);
+#endif
 		HeapManager_expandHeap(mng, SUBHEAP_DEFAULT_SEGPOOL_SIZE*2);
 		for_each_heap(h, i, mng->heaps) {
 			if (bitmap_get(&checkFull, i))
@@ -1740,6 +1761,7 @@ static void bmgc_gc_sweep(HeapManager *mng)
 static void bitmapMarkingGC_single(HeapManager *mng, enum gc_mode mode)
 {
 	gc_info("GC starting");
+	bitmap_reset(&mng->flags, 0);
 	bmgc_gc_init(mng, mode);
 #ifdef GCSTAT
 	size_t i = 0, marked = 0, collected = 0, heap_size = 0;
@@ -1764,7 +1786,6 @@ static void bitmapMarkingGC_single(HeapManager *mng, enum gc_mode mode)
 			(mode & GC_MAJOR)?"major":"minor",
 			global_gc_stat.gc_count, (heap_size/MB_), collected, marked);
 #endif
-	bitmap_reset(&mng->flags, 0);
 }
 
 static void bitmapMarkingGC(HeapManager *mng, enum gc_mode mode)
@@ -1885,7 +1906,6 @@ static void KscheduleGC(HeapManager *mng)
 {
 	enum gc_mode mode = (enum gc_mode)(mng->flags & 0x3);
 	if (mode) {
-		mode = (mode == GC_NOP) ? mode : GC_MINOR;
 		gc_info("scheduleGC mode=%d", mode);
 		bitmapMarkingGC(mng, mode);
 	}
@@ -1903,7 +1923,7 @@ void MODGC_init(KonohaContext *kctx, KonohaContextVar *ctx)
 		KSET_KLIB(KdeleteGcContext, 0);
 		KSET_KLIB(KscheduleGC, 0);
 		KSET_KLIB(KallocObject, 0);
-		KSET_KLIB(KsetObjectField, 0);
+		KSET_KLIB(KupdateObjectField, 0);
 		KSET_KLIB(KisObject, 0);
 
 		assert(sizeof(BlockHeader) <= MIN_ALIGN

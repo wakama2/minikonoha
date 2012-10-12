@@ -1020,7 +1020,7 @@ static void Method_threadCode(KonohaContext *kctx, kMethod *mtd, kByteCode *kcod
 {
 	kMethodVar *Wmtd = (kMethodVar*)mtd;
 	KLIB kMethod_setFunc(kctx, mtd, MethodFunc_runVirtualMachine);
-	KSETv(Wmtd, Wmtd->kcode, kcode);
+	KFieldSet(Wmtd, Wmtd->kcode, kcode);
 	Wmtd->pc_start = KonohaVirtualMachine_run(kctx, kctx->esp + 1, kcode->code);
 	if (verbose_code) {
 		DBG_P("DUMP CODE");
@@ -1120,10 +1120,10 @@ static void ByteCode_init(KonohaContext *kctx, kObject *o, void *conf)
 	b->codesize = 0;
 	b->code = NULL;
 	b->fileid = 0;
-	KINITv(b->source, TS_EMPTY);
+	KFieldInit(b, b->source, TS_EMPTY);
 }
 
-static void ByteCode_reftrace(KonohaContext *kctx, kObject *o)
+static void ByteCode_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kByteCode *b = (kByteCode*)o;
 	BEGIN_REFTRACE(1);
@@ -1137,7 +1137,7 @@ static void ByteCode_free(KonohaContext *kctx, kObject *o)
 	KFREE(b->code, b->codesize);
 }
 
-static void ctxcode_reftrace(KonohaContext *kctx, struct KonohaModuleContext *baseh)
+static void ctxcode_reftrace(KonohaContext *kctx, struct KonohaModuleContext *baseh, kObjectVisitor *visitor)
 {
 	ctxcode_t *base = (ctxcode_t*)baseh;
 	BEGIN_REFTRACE(2);
@@ -1159,8 +1159,8 @@ static void kmodcode_setup(KonohaContext *kctx, struct KonohaModule *def, int ne
 		ctxcode_t *base = (ctxcode_t*)KCALLOC(sizeof(ctxcode_t), 1);
 		base->h.reftrace = ctxcode_reftrace;
 		base->h.free     = ctxcode_free;
-		KINITv(base->codeList, new_(Array, K_PAGESIZE/sizeof(void*)));
-		KINITv(base->constPools, new_(Array, 64));
+		KUnsafeFieldInit(base->codeList, new_(Array, K_PAGESIZE/sizeof(void*)));
+		KUnsafeFieldInit(base->constPools, new_(Array, 64));
 		kctx->modlocal[MOD_code] = (KonohaModuleContext*)base;
 		INIT_GCSTACK();
 		kBasicBlock* ia = (kBasicBlock*)new_(BasicBlock, 0);
@@ -1174,7 +1174,7 @@ static void kmodcode_setup(KonohaContext *kctx, struct KonohaModule *def, int ne
 		kBasicBlock_add(ib, RET);   // NEED TERMINATION
 		ia->nextBlock = ib;
 		kByteCode *kcode = new_ByteCode(kctx, ia, ib);
-		KINITv(kmodcode->codeNull, kcode);
+		KUnsafeFieldInit(kmodcode->codeNull, kcode);
 		VirtualMachineInstruction *pc = KonohaVirtualMachine_run(kctx, kctx->esp, kcode->code);
 		CODE_ENTER = pc+1;
 		KLIB kArray_clear(kctx, ctxcode->codeList, 0);
@@ -1182,7 +1182,7 @@ static void kmodcode_setup(KonohaContext *kctx, struct KonohaModule *def, int ne
 	}
 }
 
-static void kmodcode_reftrace(KonohaContext *kctx, struct KonohaModule *baseh)
+static void kmodcode_reftrace(KonohaContext *kctx, struct KonohaModule *baseh, kObjectVisitor *visitor)
 {
 	KModuleByteCode *base = (KModuleByteCode*)baseh;
 	BEGIN_REFTRACE(1);

@@ -30,6 +30,7 @@
 
 static void syntaxMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void *thunk)
 {
+	kObjectVisitor *visitor = (kObjectVisitor *) thunk;
 	SugarSyntax *syn = (SugarSyntax*)p->unboxValue;
 	BEGIN_REFTRACE(6);
 	KREFTRACEn(syn->SyntaxPatternListNULL);
@@ -40,10 +41,10 @@ static void syntaxMap_reftrace(KonohaContext *kctx, KUtilsHashMapEntry *p, void 
 	END_REFTRACE();
 }
 
-static void kNameSpace_reftraceSugarExtension(KonohaContext *kctx, kNameSpace *ns)
+static void kNameSpace_reftraceSugarExtension(KonohaContext *kctx, kNameSpace *ns, kObjectVisitor *visitor)
 {
 	if(ns->syntaxMapNN != NULL) {
-		KLIB Kmap_each(kctx, ns->syntaxMapNN, NULL, syntaxMap_reftrace);
+		KLIB Kmap_each(kctx, ns->syntaxMapNN, (void *)visitor, syntaxMap_reftrace);
 	}
 	if(ns->tokenMatrix != NULL) {
 		BEGIN_REFTRACE(KCHAR_MAX);
@@ -80,15 +81,15 @@ static void Token_init(KonohaContext *kctx, kObject *o, void *conf)
 	tk->uline     =   0;
 	tk->unresolvedTokenType = (ksymbol_t)(intptr_t)conf;
 	if(tk->unresolvedTokenType == 0  || SYM_UNMASK(tk->unresolvedTokenType) != tk->unresolvedTokenType) {
-		KINITv(tk->text, TS_EMPTY);
+		KUnsafeFieldInit(tk->text, TS_EMPTY);
 	}
 	else {
-		KINITv(tk->text, SYM_s(tk->unresolvedTokenType));
+		KUnsafeFieldInit(tk->text, SYM_s(tk->unresolvedTokenType));
 	}
 	tk->resolvedSyntaxInfo = NULL;
 }
 
-static void Token_reftrace(KonohaContext *kctx, kObject *o)
+static void Token_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kToken *tk = (kToken*)o;
 	BEGIN_REFTRACE(1);
@@ -105,11 +106,11 @@ static void Expr_init(KonohaContext *kctx, kObject *o, void *conf)
 	expr->build    = TEXPR_UNTYPED;
 	expr->ty       = TY_var;
 	expr->index    = 0;
-	KINITv(expr->termToken, K_NULLTOKEN);
+	KFieldInit(expr, expr->termToken, K_NULLTOKEN);
 	expr->syn = (SugarSyntax*)conf;
 }
 
-static void Expr_reftrace(KonohaContext *kctx, kObject *o)
+static void Expr_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kExpr *expr = (kExpr*)o;
 	BEGIN_REFTRACE(2);
@@ -123,7 +124,7 @@ static void Expr_reftrace(KonohaContext *kctx, kObject *o)
 static kExpr* new_UntypedTermExpr(KonohaContext *kctx, kToken *tk)
 {
 	kExprVar *expr = GCSAFE_new(ExprVar, tk->resolvedSyntaxInfo);
-	KSETv(expr, expr->termToken, tk);
+	KFieldSet(expr, expr->termToken, tk);
 	Expr_setTerm(expr, 1);
 	return (kExpr*)expr;
 }
@@ -132,7 +133,7 @@ static kExprVar* kExpr_vadd(KonohaContext *kctx, kExprVar *expr, int n, va_list 
 {
 	int i;
 	if(!IS_Array(expr->cons)) {
-		KSETv(expr, expr->cons, new_(Array, 8));
+		KFieldSet(expr, expr->cons, new_(Array, 8));
 	}
 	for(i = 0; i < n; i++) {
 		kObject *v =  (kObject*)va_arg(ap, kObject*);
@@ -174,7 +175,7 @@ static kExpr* new_TypedCallExpr(KonohaContext *kctx, kStmt *stmt, kGamma *gma, k
 	va_list ap;
 	va_start(ap, n);
 	kExprVar *expr = GCSAFE_new(ExprVar, NULL);
-	KSETv(expr, expr->cons, new_(Array, 8));
+	KFieldSet(expr, expr->cons, new_(Array, 8));
 	KLIB kArray_add(kctx, expr->cons, mtd);
 	expr = kExpr_vadd(kctx, expr, n, ap);
 	va_end(ap);
@@ -204,7 +205,7 @@ static kExpr* SUGAR kExpr_setConstValue(KonohaContext *kctx, kExpr *expr, ktype_
 	}
 	else {
 		Wexpr->build = TEXPR_CONST;
-		KINITp(Wexpr, Wexpr->objectConstValue, o);
+		KFieldInit(Wexpr, Wexpr->objectConstValue, o);
 		Expr_setObjectConstValue(Wexpr, 1);
 	}
 	return (kExpr*)Wexpr;
@@ -246,7 +247,7 @@ static void Stmt_init(KonohaContext *kctx, kObject *o, void *conf)
 	stmt->build    = 0;
 }
 
-static void Stmt_reftrace(KonohaContext *kctx, kObject *o)
+static void Stmt_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kStmt *stmt = (kStmt*)o;
 	BEGIN_REFTRACE(1);
@@ -325,12 +326,12 @@ static void kBlock_init(KonohaContext *kctx, kObject *o, void *conf)
 	kBlockVar *bk = (kBlockVar*)o;
 	kNameSpace *ns = (conf != NULL) ? (kNameSpace*)conf : KNULL(NameSpace);
 	bk->parentStmtNULL = NULL;
-	KINITv(bk->blockNameSpace, ns);
-	KINITv(bk->stmtList, new_(StmtArray, 0));
-	KINITv(bk->esp, new_(Expr, 0));
+	KFieldInit(bk, bk->blockNameSpace, ns);
+	KFieldInit(bk, bk->stmtList, new_(StmtArray, 0));
+	KFieldInit(bk, bk->esp, new_(Expr, 0));
 }
 
-static void kBlock_reftrace(KonohaContext *kctx, kObject *o)
+static void kBlock_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
 {
 	kBlock *bk = (kBlock*)o;
 	BEGIN_REFTRACE(4);
@@ -343,7 +344,7 @@ static void kBlock_reftrace(KonohaContext *kctx, kObject *o)
 
 static void kBlock_insertAfter(KonohaContext *kctx, kBlock *bk, kStmtNULL *target, kStmt *stmt)
 {
-	KSETv(stmt, ((kStmtVar*)stmt)->parentBlockNULL, bk);
+	KFieldSet(stmt, ((kStmtVar*)stmt)->parentBlockNULL, bk);
 	if(target != NULL) {
 		size_t i;
 		for(i = 0; i < kArray_size(bk->stmtList); i++) {
