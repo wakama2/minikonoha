@@ -32,12 +32,12 @@ extern "C" {
 #endif
 // --------------------------------------------------------------------------
 
-static kbool_t while_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t while_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t while_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t while_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
@@ -58,7 +58,7 @@ static KMETHOD Statement_while(KonohaContext *kctx, KonohaStack *sfp)
 			kStmt_typed(stmt, LOOP);
 		}
 	}
-	RETURNb_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static inline kStmt* kStmt_getParentNULL(kStmt *stmt)
@@ -66,19 +66,19 @@ static inline kStmt* kStmt_getParentNULL(kStmt *stmt)
 	return stmt->parentBlockNULL->parentStmtNULL;
 }
 
-static kbool_t while_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t while_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
-	KImportPackage(ns, "konoha.break", pline);
-	KImportPackage(ns, "konoha.continue", pline);
+	KImportPackage(ns, "konoha.break", trace);
+	KImportPackage(ns, "konoha.continue", trace);
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("while"), 0, "\"while\" \"(\" $Expr \")\" $Block", 0, 0, NULL, NULL, NULL, Statement_while, NULL, },
 		{ KW_END, },
 	};
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNS);
 	return true;
 }
 
-static kbool_t while_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t while_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
@@ -86,7 +86,7 @@ static kbool_t while_setupNameSpace(KonohaContext *kctx, kNameSpace *packageName
 KDEFINE_PACKAGE* while_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
-	KSETPACKNAME(d, "while", "1.0");
+	KSetPackageName(d, "while", "1.0");
 	d.initPackage    = while_initPackage;
 	d.setupPackage   = while_setupPackage;
 	d.initNameSpace  = while_initNameSpace;

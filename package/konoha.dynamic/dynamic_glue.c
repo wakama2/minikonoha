@@ -38,7 +38,7 @@ struct _kDynamic {
 //{
 //}
 //
-//static void Dynamic_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+//static void Dynamic_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 //{
 //}
 //
@@ -77,34 +77,32 @@ static KMETHOD Dynamic_(KonohaContext *kctx, KonohaStack *sfp)
 	if(mtd != NULL) {
 		if(kMethod_checkMethodCallStack(kctx, sfp, mtd, argc)) {
 			KonohaRuntime_setesp(kctx, kctx->esp - 1);
-			sfp[K_MTDIDX].mtdNC = mtd;
+			sfp[K_MTDIDX].methodCallInfo = mtd;
 			//kObject *returnValue = sfp[K_RTNIDX].asObject;
 			KonohaRuntime_callMethod(kctx, sfp);
-
 			return;
 		}
 	}
-	KLIB KonohaRuntime_raise(kctx, EXPT_("NoSuchMethod"), sfp, sfp[K_RTNIDX].uline, NULL);
+	KMakeTrace(trace, sfp);
+	KLIB KonohaRuntime_raise(kctx, EXPT_("NoSuchMethod"), NULL, trace);
 }
 
 // --------------------------------------------------------------------------
 
 #define _Public   kMethod_Public
-#define _Const    kMethod_Const
-#define _Coercion kMethod_Coercion
 #define _Im       kMethod_Immutable
 #define _F(F)   (intptr_t)(F)
 
-static kbool_t dynamic_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t dynamic_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 
 	static KDEFINE_CLASS defDynamic = {0};
 	defDynamic.structname = "dynamic";
 	defDynamic.cflag = kClass_Final|kClass_TypeVar;
 	
-	KonohaClass *cDynamic = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDynamic, pline);
+	KonohaClass *cDynamic = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDynamic, trace);
 //	KDEFINE_INT_CONST ClassData[] = {   // add Array as available
-//		{"Array", TY_TYPE, (uintptr_t)CT_(TY_Array)},
+//		{"Array", VirtualType_KonohaClass, (uintptr_t)CT_(TY_Array)},
 //		{NULL},
 //	};
 //	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(ClassData), 0);
@@ -126,17 +124,17 @@ static kbool_t dynamic_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc
 	return true;
 }
 
-static kbool_t dynamic_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t dynamic_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t dynamic_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t dynamic_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t dynamic_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t dynamic_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
@@ -144,7 +142,7 @@ static kbool_t dynamic_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNa
 KDEFINE_PACKAGE* dynamic_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
-	KSETPACKNAME(d, "dynamic", "1.0");
+	KSetPackageName(d, "dynamic", "1.0");
 	d.initPackage    = dynamic_initPackage;
 	d.setupPackage   = dynamic_setupPackage;
 	d.initNameSpace  = dynamic_initNameSpace;

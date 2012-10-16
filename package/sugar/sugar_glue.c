@@ -30,6 +30,128 @@
 extern "C"{
 #endif
 
+#define _Public   kMethod_Public
+#define _Const    kMethod_Const
+#define _Im       kMethod_Immutable
+#define _Coercion kMethod_Coercion
+#define _F(F)   (intptr_t)(F)
+
+/* Symbol class */
+
+static ksymbol_t StringToKsymbol(KonohaContext *kctx, kString *key)
+{
+	return ksymbolA(S_text(key), S_size(key), _NEWID);
+}
+
+static void kSymbol_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
+{
+	ksymbol_t symbol = (ksymbol_t)v[pos].unboxValue;
+	DBG_P(">>> symbol=%d, %s%s", symbol, PSYM_t(symbol));
+	KLIB Kwb_printf(kctx, wb, "%s%s", PSYM_t(symbol));
+}
+
+//## symbol String.toSymbol(String keyword);
+static KMETHOD String_toSymbol(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = StringToKsymbol(kctx, sfp[0].asString);
+	DBG_P(">>> symbol=%d, %s%s", keyword, PSYM_t(keyword));
+	KReturnUnboxValue(keyword);
+}
+
+static KonohaClass *loadSymbolClass(KonohaContext *kctx, kNameSpace *ns, KTraceInfo *trace)
+{
+	static KDEFINE_CLASS defSymbol = {0};
+	defSymbol.structname = "symbol";
+	defSymbol.cflag = CFLAG_int;
+	defSymbol.init = CT_(TY_int)->init;
+	defSymbol.unbox = CT_(TY_int)->unbox;
+	defSymbol.p = kSymbol_p;
+	KonohaClass *cSymbol = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defSymbol, trace);
+	KDEFINE_METHOD MethodData[] = {
+		_Public|_Coercion|_Const, _F(String_toSymbol), TY_boolean, TY_String, MN_to(cSymbol->typeId), 0,
+		DEND,
+	};
+	KLIB kNameSpace_loadMethodData(kctx, ns, MethodData);
+	return cSymbol;
+}
+
+// --------------------------------------------------------------------------
+/* NameSpace */
+
+static kbool_t SugarSyntax_hasSyntaxPatternList(SugarSyntax *syn)
+{
+	while(syn != NULL) {
+		if(syn->syntaxPatternListNULL_OnList != NULL) return true;
+		syn = syn->parentSyntaxNULL;
+	}
+	return false;
+}
+
+static kbool_t SugarSyntax_hasSugarFunc(SugarSyntax *syn, int index)
+{
+	while(syn != NULL) {
+		if(syn->sugarFuncListTable[index] != NULL) return true;
+		syn = syn->parentSyntaxNULL;
+	}
+	return false;
+}
+
+//## boolean NameSpace.definedSyntax(symbol keyword);
+static KMETHOD NameSpace_definedSyntax(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = (ksymbol_t)sfp[1].intValue;
+	SugarSyntax* syn = SYN_(sfp[0].asNameSpace, keyword);
+	KReturnUnboxValue(syn != NULL);
+}
+
+//## boolean NameSpace.definedLiteral(symbol keyword);
+static KMETHOD NameSpace_definedLiteral(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = (ksymbol_t)sfp[1].intValue;
+	SugarSyntax* syn = SYN_(sfp[0].asNameSpace, keyword);
+	KReturnUnboxValue(SugarSyntax_hasSugarFunc(syn, SugarFunc_TokenFunc));
+}
+
+//## boolean NameSpace.definedStatement(symbol keyword);
+static KMETHOD NameSpace_definedStatement(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = (ksymbol_t)sfp[1].intValue;
+	SugarSyntax* syn = SYN_(sfp[0].asNameSpace, keyword);
+	KReturnUnboxValue(SugarSyntax_hasSyntaxPatternList(syn) && SugarSyntax_hasSugarFunc(syn, SugarFunc_Statement));
+}
+
+//## boolean NameSpace.definedExpression(symbol keyword);
+static KMETHOD NameSpace_definedExpression(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = (ksymbol_t)sfp[1].intValue;
+	SugarSyntax* syn = SYN_(sfp[0].asNameSpace, keyword);
+	KReturnUnboxValue(syn != NULL && (syn->precedence_op2 > 0 || syn->precedence_op1 > 0));
+}
+
+//## boolean NameSpace.definedBinaryOperator(symbol keyword);
+static KMETHOD NameSpace_definedBinaryOperator(KonohaContext *kctx, KonohaStack *sfp)
+{
+	ksymbol_t keyword = (ksymbol_t)sfp[1].intValue;
+	SugarSyntax* syn = SYN_(sfp[0].asNameSpace, keyword);
+	KReturnUnboxValue(syn != NULL && (syn->precedence_op2 > 0));
+}
+
+static void loadNameSpaceMethodData(KonohaContext *kctx, kNameSpace *ns, int TY_symbol)
+{
+	int FN_keyword = SYM_("keyword");
+	KDEFINE_METHOD MethodData[] = {
+		_Public|_Im, _F(NameSpace_definedSyntax), TY_boolean, TY_NameSpace, MN_("definedSyntax"), 1, TY_symbol, FN_keyword,
+		_Public|_Im, _F(NameSpace_definedLiteral), TY_boolean, TY_NameSpace, MN_("definedLiteral"), 1, TY_symbol, FN_keyword,
+		_Public|_Im, _F(NameSpace_definedStatement), TY_boolean, TY_NameSpace, MN_("definedStatement"), 1, TY_symbol, FN_keyword,
+		_Public|_Im, _F(NameSpace_definedExpression), TY_boolean, TY_NameSpace, MN_("definedExpression"), 1, TY_symbol, FN_keyword,
+		_Public|_Im, _F(NameSpace_definedBinaryOperator), TY_boolean, TY_NameSpace, MN_("definedBinaryOperator"), 1, TY_symbol, FN_keyword,
+		DEND,
+	};
+	KLIB kNameSpace_loadMethodData(kctx, ns, MethodData);
+}
+
+/* Token */
+
 //## void Token.setKeyword(String keywork);
 static KMETHOD Token_setUnresolvedTokenType(KonohaContext *kctx, KonohaStack *sfp)
 {
@@ -38,7 +160,7 @@ static KMETHOD Token_setUnresolvedTokenType(KonohaContext *kctx, KonohaStack *sf
 	ksymbol_t keyword = ksymbolA(S_text(key), S_size(key), _NEWID);
 	tk->unresolvedTokenType = keyword;
 	DBG_P("setkeyword=%s%s", PSYM_t(keyword));
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## void Token.setText(String text);
@@ -47,7 +169,7 @@ static KMETHOD Token_setText(KonohaContext *kctx, KonohaStack *sfp)
 	kTokenVar *tk = (kTokenVar *) sfp[0].asToken;
 	kString *text = sfp[1].asString;
 	KFieldSet(tk, tk->text, text);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## void Token.setSubArray(String[] sub);
@@ -56,32 +178,32 @@ static KMETHOD Token_setSubArray(KonohaContext *kctx, KonohaStack *sfp)
 	kTokenVar *tk = (kTokenVar *) sfp[0].asToken;
 	kArray *sub = sfp[1].asArray;
 	KFieldSet(tk, tk->subTokenList, sub);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 ////## boolean Token.isTypeName();
 //static KMETHOD Token_isTypeName(KonohaContext *kctx, KonohaStack *sfp)
 //{
-//	RETURNb_(Token_isVirtualTypeLiteral(sfp[0].asToken));
+//	KReturnUnboxValue(Token_isVirtualTypeLiteral(sfp[0].asToken));
 //}
 //
 ////## boolean Token.isParenthesis();
 //static KMETHOD Token_isParenthesis(KonohaContext *kctx, KonohaStack *sfp)
 //{
-//	RETURNb_(sfp[0].asToken->keyword == KW_ParenthesisGroup);
+//	KReturnUnboxValue(sfp[0].asToken->keyword == KW_ParenthesisGroup);
 //}
 
 //## String Token.getText();
 static KMETHOD Token_getText(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kTokenVar *tk = (kTokenVar *)sfp[0].asToken;
-	RETURN_(tk->text);
+	KReturn(tk->text);
 }
 
 //## int Stmt.getBuild();
 static KMETHOD Stmt_getBuild(KonohaContext *kctx, KonohaStack *sfp)
 {
-	RETURNi_(sfp[0].asStmt->build);
+	KReturnUnboxValue(sfp[0].asStmt->build);
 }
 
 //## void Stmt.setBuild(int buildid);
@@ -95,27 +217,27 @@ static KMETHOD Stmt_setBuild(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stmt_getBlock(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kString *key = sfp[1].asString;
-	RETURN_(SUGAR kStmt_getBlock(kctx, sfp[0].asStmt, NULL/*DefaultNameSpace*/, ksymbolA(S_text(key), S_size(key), _NEWID), sfp[2].asBlock));
+	KReturn(SUGAR kStmt_getBlock(kctx, sfp[0].asStmt, NULL/*DefaultNameSpace*/, ksymbolA(S_text(key), S_size(key), _NEWID), sfp[2].asBlock));
 }
 
 //## void Stmt.setType(int build);
 static KMETHOD Stmt_setType(KonohaContext *kctx, KonohaStack *sfp)
 {
 	Stmt_typed(sfp[0].asStmt, sfp[1].intValue);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## boolean Stmt.tyCheckExpr(String key, Gamma gma, int typeid, int pol);
 static KMETHOD kStmt_tyCheckByName(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kString *key = sfp[1].asString;
-	RETURNb_(SUGAR kStmt_tyCheckByName(kctx, sfp[0].asStmt, ksymbolA(S_text(key), S_size(key), _NEWID), sfp[2].asGamma, (ktype_t)sfp[3].intValue, (int)sfp[4].intValue));
+	KReturnUnboxValue(SUGAR kStmt_tyCheckByName(kctx, sfp[0].asStmt, ksymbolA(S_text(key), S_size(key), _NEWID), sfp[2].asGamma, (ktype_t)sfp[3].intValue, (int)sfp[4].intValue));
 }
 
 //## boolean Blook.tyCheckAll(Gamma gma);
 static KMETHOD kBlock_tyCheckAll(KonohaContext *kctx, KonohaStack *sfp)
 {
-	RETURNb_(SUGAR kBlock_tyCheckAll(kctx, sfp[0].asBlock, sfp[1].asGamma));
+	KReturnUnboxValue(SUGAR kBlock_tyCheckAll(kctx, sfp[0].asBlock, sfp[1].asGamma));
 }
 
 // --------------------------------------------------------------------------
@@ -125,7 +247,7 @@ static KMETHOD kBlock_tyCheckAll(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Expr_getTermToken(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kExpr *expr = sfp[0].asExpr;
-	RETURN_(expr->termToken);
+	KReturn(expr->termToken);
 }
 
 
@@ -135,7 +257,7 @@ static KMETHOD Expr_setUnboxConstValue(KonohaContext *kctx, KonohaStack *sfp)
 	kExpr *expr = sfp[0].asExpr;
 	ktype_t tid = sfp[1].intValue;
 	int value = sfp[2].intValue;
-	RETURN_(SUGAR kExpr_setUnboxConstValue(kctx, expr, tid, value));
+	KReturn(SUGAR kExpr_setUnboxConstValue(kctx, expr, tid, value));
 }
 // --------------------------------------------------------------------------
 
@@ -210,7 +332,7 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 	kStmt   *stmt  = sfp[0].asStmt;
 	kString *msg   = sfp[1].asString;
 	SUGAR kStmt_printMessage2(kctx, stmt, NULL, ErrTag, "%s", S_text(msg));
-	RETURN_(K_NULLEXPR);
+	KReturn(K_NULLEXPR);
 }
 
 // --------------------------------------------------------------------------
@@ -241,7 +363,7 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //	else {
 //		SUGAR p(kctx, ErrTag, tk->uline, tk->lpos, "syntax error");
 //	}
-//	RETURN_(K_NULLEXPR);
+//	KReturn(K_NULLEXPR);
 //}
 
 ////## Expr Stmt.newBlock(Token[] tokenList, int s, int e);
@@ -251,7 +373,7 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //	kStmt *stmt  = sfp[0].asStmt;
 //	kArray *tokenList  = sfp[1].asArray;
 //	int s = sfp[2].intValue, e = sfp[3].intValue;
-//	RETURN_(SUGAR new_kBlock(kctx, Stmt_nameSpace(stmt), stmt, tokenList, s, e, ';'));
+//	KReturn(SUGAR new_kBlock(kctx, Stmt_nameSpace(stmt), stmt, tokenList, s, e, ';'));
 //}
 
 ////## Expr Stmt.newExpr(Token[] tokenList, int s, int e);
@@ -260,7 +382,7 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //	kStmt *stmt  = sfp[0].asStmt;
 //	kArray *tokenList  = sfp[1].asArray;
 //	int s = sfp[2].intValue, e = sfp[3].intValue;
-//	RETURN_(SUGAR kStmt_parseExpr(kctx, stmt, tokenList, s, e, NULL));
+//	KReturn(SUGAR kStmt_parseExpr(kctx, stmt, tokenList, s, e, NULL));
 //}
 
 ////## Expr Stmt.newMethodCallExpr(Token key, Token self);
@@ -270,10 +392,10 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //	kStmt *stmt  = sfp[0].asStmt;
 //	kToken *tk   = sfp[1].asToken;
 //	assert(tk->keyword != 0);
-//	kExprVar *expr = GCSAFE_new(ExprVar, SYN_(Stmt_nameSpace(stmt), tk->keyword));
+//	kExprVar *expr = /*G*/new_(ExprVar, SYN_(Stmt_nameSpace(stmt), tk->keyword));
 //	KFieldSet(expr, expr->tk, tk);
 //	KFieldSet(expr, expr->cons, new_(Array, 8));
-//	RETURN_(expr);
+//	KReturn(expr);
 //}
 
 ////## Expr Stmt.addExprParam(Token tk);
@@ -291,7 +413,7 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //		assert(IS_Array(tk->subTokenList));
 //		expr = SUGAR kStmt_addExprParam(kctx, stmt, expr, tk->subTokenList, 0, kArray_size(tk->subTokenList), 1/*allowEmpty*/);
 //	}
-//	RETURN_(expr);
+//	KReturn(expr);
 //}
 
 ////## Expr Expr.addExpr(Expr expr, Expr o);
@@ -305,27 +427,22 @@ static KMETHOD kStmt_printMessage2rintError(KonohaContext *kctx, KonohaStack *sf
 //	if(IS_NOTNULL(expr)) {
 //		KLIB kArray_add(kctx, expr->cons, o);
 //	}
-//	RETURN_(expr);
+//	KReturn(expr);
 //}
-
-
 
 // --------------------------------------------------------------------------
 
-#define _Public   kMethod_Public
-#define _Const    kMethod_Const
-#define _Coercion kMethod_Coercion
-#define _F(F)   (intptr_t)(F)
-
-static kbool_t sugar_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t sugar_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
+	KonohaClass *cSymbol = loadSymbolClass(kctx, ns, trace);
 	KDEFINE_INT_CONST ClassData[] = {   // add Array as available
-		{"Token", TY_TYPE, (uintptr_t)CT_Token},
-		{"Stmt", TY_TYPE,  (uintptr_t)CT_Stmt},
-		{"Expr", TY_TYPE,  (uintptr_t)CT_Expr},
-		{"Block", TY_TYPE, (uintptr_t)CT_Block},
-		{"Gamma", TY_TYPE, (uintptr_t)CT_Gamma},
-		{"NameSpace", TY_TYPE, (uintptr_t)CT_NameSpace},
+		{"Token", VirtualType_KonohaClass, (uintptr_t)CT_Token},
+		{"Stmt", VirtualType_KonohaClass,  (uintptr_t)CT_Stmt},
+		{"Expr", VirtualType_KonohaClass,  (uintptr_t)CT_Expr},
+		{"Block", VirtualType_KonohaClass, (uintptr_t)CT_Block},
+		{"Gamma", VirtualType_KonohaClass, (uintptr_t)CT_Gamma},
+		{"NameSpace", VirtualType_KonohaClass, (uintptr_t)CT_NameSpace},
+		{"symbol", VirtualType_KonohaClass, (uintptr_t)cSymbol},
 		{NULL},
 	};
 	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(ClassData), 0);
@@ -387,19 +504,20 @@ static kbool_t sugar_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, 
 //		_Public, _F(kStmt_printMessage2arsedExpr), TY_Expr, TY_Stmt, MN_("parseExpr"), 3, TY_TokenArray, FN_tokenList, TY_int, FN_s, TY_int, FN_e,
 		DEND,
 	};
-	KLIB kNameSpace_loadMethodData(kctx, NULL, MethodData);
+	KLIB kNameSpace_loadMethodData(kctx, ns, MethodData);
+	loadNameSpaceMethodData(kctx, ns, cSymbol->typeId);
 	return true;
 }
 
-static kbool_t sugar_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t sugar_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
 static kbool_t isSubKeyword(KonohaContext *kctx, kArray *tokenList, int beginIdx, int endIdx)
 {
-	if(beginIdx+1 < endIdx && tokenList->tokenItems[beginIdx+1]->resolvedSyntaxInfo->keyword == KW_TextPattern) {
-		const char *t = S_text(tokenList->tokenItems[beginIdx+1]->text);
+	if(beginIdx+1 < endIdx && tokenList->TokenItems[beginIdx+1]->resolvedSyntaxInfo->keyword == KW_TextPattern) {
+		const char *t = S_text(tokenList->TokenItems[beginIdx+1]->text);
 		if(isalpha(t[0]) || t[0] < 0 /* multibytes char */) {
 			return 1;
 		}
@@ -411,15 +529,15 @@ static SugarSyntaxVar *kNameSpace_guessSyntaxFromTokenList(KonohaContext *kctx, 
 {
 	int beginIdx = 0, endIdx = kArray_size(tokenList);
 	if(beginIdx < endIdx) {
-		if(tokenList->tokenItems[beginIdx]->resolvedSyntaxInfo->keyword == KW_TextPattern) {
+		if(tokenList->TokenItems[beginIdx]->resolvedSyntaxInfo->keyword == KW_TextPattern) {
 			ksymbol_t kw;
 			if(isSubKeyword(kctx, tokenList, beginIdx, endIdx)) {
 				char buf[256];
-				PLATAPI snprintf_i(buf, sizeof(buf), "%s_%s", S_text(tokenList->tokenItems[beginIdx]->text), S_text(tokenList->tokenItems[beginIdx+1]->text));
+				PLATAPI snprintf_i(buf, sizeof(buf), "%s_%s", S_text(tokenList->TokenItems[beginIdx]->text), S_text(tokenList->TokenItems[beginIdx+1]->text));
 				kw = ksymbolA((const char*)buf, strlen(buf), SYM_NEWID);
 			}
 			else {
-				kw = ksymbolA(S_text(tokenList->tokenItems[beginIdx]->text), S_size(tokenList->tokenItems[beginIdx]->text), SYM_NEWID);
+				kw = ksymbolA(S_text(tokenList->TokenItems[beginIdx]->text), S_size(tokenList->TokenItems[beginIdx]->text), SYM_NEWID);
 			}
 			return (SugarSyntaxVar*)NEWSYN_(ns, kw);
 		}
@@ -434,24 +552,25 @@ static KMETHOD Statement_syntax(KonohaContext *kctx, KonohaStack *sfp)
 	kTokenArray *tokenList = (kTokenArray*)kStmt_getObject(kctx, stmt, KW_TokenPattern, NULL);
 	if(tokenList != NULL) {
 		FIXME_ASSERT(IS_Array(tokenList));  // tokenList can be Token
-		SugarSyntaxVar *syn = kNameSpace_guessSyntaxFromTokenList(kctx, Stmt_nameSpace(stmt), tokenList);
+		kNameSpace *ns = Stmt_nameSpace(stmt);
+		SugarSyntaxVar *syn = kNameSpace_guessSyntaxFromTokenList(kctx, ns, tokenList);
 		if(syn != NULL) {
-			if(syn->SyntaxPatternListNULL != NULL) {
+			if(syn->syntaxPatternListNULL_OnList != NULL) {
 				SUGAR kStmt_printMessage2(kctx, stmt, NULL, InfoTag, "overriding syntax: %s%s", PSYM_t(syn->keyword));
 			}
 			else {
-				KFieldInit(Stmt_nameSpace(stmt), syn->SyntaxPatternListNULL, new_(Array, 8));
+				syn->syntaxPatternListNULL_OnList = new_(Array, 8, ns->NameSpaceConstList);
 			}
-			TokenSequence tokens = {Stmt_nameSpace(stmt), tokenList, 0, kArray_size(tokenList)};
-			SUGAR kArray_addSyntaxRule(kctx, syn->SyntaxPatternListNULL, &tokens);
+			TokenSequence tokens = {ns, tokenList, 0, kArray_size(tokenList)};
+			SUGAR kArray_addSyntaxRule(kctx, syn->syntaxPatternListNULL_OnList, &tokens);
 			r = 1;
 		}
 		kStmt_done(kctx, stmt);
 	}
-	RETURNb_(r);
+	KReturnUnboxValue(r);
 }
 
-static kbool_t sugar_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t sugar_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	KDEFINE_INT_CONST IntData[] = {
 #define DEFINE_KEYWORD(KW) {#KW, TY_int, KW}
@@ -491,16 +610,16 @@ static kbool_t sugar_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameS
 #undef DEFINE_KEYWORD
 		{NULL},
 	};
-	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), pline);
+	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), trace);
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("syntax"), 0, "\"syntax\" $Token $Token*", 0, 0, NULL, NULL, Statement_syntax, NULL, NULL, },
 		{ KW_END, },
 	};
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNS);
 	return true;
 }
 
-static kbool_t sugar_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t sugar_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
@@ -508,7 +627,7 @@ static kbool_t sugar_setupNameSpace(KonohaContext *kctx, kNameSpace *packageName
 KDEFINE_PACKAGE* sugar_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
-	KSETPACKNAME(d, "sugar", "1.0");
+	KSetPackageName(d, "sugar", "1.0");
 	d.initPackage    = sugar_initPackage;
 	d.setupPackage   = sugar_setupPackage;
 	d.initNameSpace  = sugar_initNameSpace;

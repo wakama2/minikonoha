@@ -54,7 +54,7 @@ static void kJSON_free(KonohaContext *kctx, kObject *o)
 	}
 }
 
-static void kJSON_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void kJSON_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
 	kJSON *json = (kJSON *)v[pos].asObject;
 	char *data = JSON_toString(json->json);
@@ -68,12 +68,12 @@ static void kJSON_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuf
 //## JSON JSON.new();
 static KMETHOD kJSON_new(KonohaContext *kctx, KonohaStack *sfp)
 {
-	RETURN_(sfp[0].o);
+	KReturn(sfp[0].asObject);
 }
 
 static kJSON *NewJsonObject(KonohaContext *kctx, KonohaStack *sfp, JSON val)
 {
-	kJSON *json = (kJSON*)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].asObject), 0);
+	kJSON *json = (kJSON*)KLIB new_kObjectDontUseThis(kctx, KGetReturnType(sfp), 0);
 	json->json = val;
 	return json;
 }
@@ -83,11 +83,11 @@ static KMETHOD kJSON_parse(KonohaContext *kctx, KonohaStack *sfp)
 {
 	const char *text = S_text(sfp[1].asString);
 	JSON json = parseJSON(text, text+S_size(sfp[1].asString));
-	if (!json.bits) {
+	if(!json.bits) {
 		/* FIXME Error Handling */
-		RETURN_DefaultObjectValue();
+		KReturnDefaultObjectValue();
 	}
-	RETURN_(NewJsonObject(kctx, sfp, json));
+	KReturn(NewJsonObject(kctx, sfp, json));
 }
 
 //## JSON JSON.get(String key);
@@ -96,7 +96,7 @@ static KMETHOD kJSON_get(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	const char *key = S_text(sfp[1].asString);
 	JSON json = JSON_get(obj, key);
-	RETURN_(NewJsonObject(kctx, sfp, json));
+	KReturn(NewJsonObject(kctx, sfp, json));
 }
 
 //## JSONArray JSON.getArray();
@@ -105,7 +105,7 @@ static KMETHOD kJSON_getArray(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	const char *key = S_text(sfp[1].asString);
 	JSON json = JSON_get(obj, key);
-	RETURN_(NewJsonObject(kctx, sfp, json));
+	KReturn(NewJsonObject(kctx, sfp, json));
 }
 
 //## JSONBool JSON.getBool(String key);
@@ -114,7 +114,7 @@ static KMETHOD kJSON_getBool(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	const char *key = S_text(sfp[1].asString);
 	bool json = JSON_getBool(obj, key);
-	RETURNb_(json);
+	KReturnUnboxValue(json);
 }
 
 //## JSONFloat JSON.getFloat(String key);
@@ -123,7 +123,7 @@ static KMETHOD kJSON_getFloat(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	const char *key = S_text(sfp[1].asString);
 	double json = JSON_getDouble(obj, key);
-	RETURNf_(json);
+	KReturnFloatValue(json);
 }
 
 //## String JSON.getInt(String key);
@@ -132,7 +132,7 @@ static KMETHOD kJSON_getInt(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	const char *key = S_text(sfp[1].asString);
 	int32_t json = JSON_getInt(obj, key);
-	RETURNi_(json);
+	KReturnUnboxValue(json);
 }
 
 //## String JSON.getString(String key);
@@ -142,7 +142,7 @@ static KMETHOD kJSON_getString(KonohaContext *kctx, KonohaStack *sfp)
 	const char *key = S_text(sfp[1].asString);
 	size_t len;
 	const char *text = JSON_getString(obj, key, &len);
-	RETURN_(KLIB new_kString(kctx, text, len, 0));
+	KReturn(KLIB new_kString(kctx, text, len, 0));
 }
 
 //## void JSON.set(String key, JSON value);
@@ -154,7 +154,7 @@ static KMETHOD kJSON_set(KonohaContext *kctx, KonohaStack *sfp)
 	val = ((kJSON*)sfp[2].asObject)->json;
 	key = JSONString_new(S_text(s), S_size(s));
 	JSONObject_set(obj, key, val);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -165,14 +165,14 @@ static KMETHOD kJSONArray_append(KonohaContext *kctx, KonohaStack *sfp)
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	JSON val = ((kJSON*)sfp[1].asObject)->json;
 	JSONArray_append(obj, val);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## int JSON.getSize();
 static KMETHOD kJSONArray_getSize(KonohaContext *kctx, KonohaStack *sfp)
 {
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
-	RETURNi_(JSON_length(obj));
+	KReturnUnboxValue(JSON_length(obj));
 }
 
 //## JSON JSONArray.get(int index);
@@ -180,7 +180,7 @@ static KMETHOD kJSONArray_get(KonohaContext *kctx, KonohaStack *sfp)
 {
 	JSON obj = ((kJSON*)sfp[0].asObject)->json;
 	JSON json = JSONArray_get(obj, sfp[1].intValue);
-	RETURN_(NewJsonObject(kctx, sfp, json));
+	KReturn(NewJsonObject(kctx, sfp, json));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -193,9 +193,9 @@ static KMETHOD kJSONArray_get(KonohaContext *kctx, KonohaStack *sfp)
 #define CT_JSON     cJSON
 #define TY_JSON     cJSON->typeId
 
-static kbool_t JSON_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t JSON_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
-	KRequirePackage("konoha.float", pline);
+	KRequirePackage("konoha.float", trace);
 	KDEFINE_CLASS JSONDef = {
 		STRUCTNAME(JSON),
 		.cflag = kClass_Final,
@@ -203,7 +203,7 @@ static kbool_t JSON_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, c
 		.free = kJSON_free,
 		.p    = kJSON_p,
 	};
-	KonohaClass *cJSON = KLIB kNameSpace_defineClass(kctx, ns, NULL, &JSONDef, pline);
+	KonohaClass *cJSON = KLIB kNameSpace_defineClass(kctx, ns, NULL, &JSONDef, trace);
 	kparamtype_t ps = {TY_JSON, FN_("json")};
 	KonohaClass *CT_JSONArray = KLIB KonohaClass_Generics(kctx, CT_Array, TY_JSON, 1, &ps);
 	ktype_t TY_JSONArray = CT_JSONArray->typeId;
@@ -231,19 +231,19 @@ static kbool_t JSON_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, c
 	return true;
 }
 
-static kbool_t JSON_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t JSON_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t JSON_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t JSON_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
-	//KImportPackage("konoha.string", ns,  pline);
-	//KImportPackage("konoha.float", ns, pline);
+	//KImportPackage("konoha.string", ns,  trace);
+	//KImportPackage("konoha.float", ns, trace);
 	return true;
 }
 
-static kbool_t JSON_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t JSON_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

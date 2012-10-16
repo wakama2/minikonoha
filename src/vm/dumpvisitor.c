@@ -35,7 +35,7 @@ static void DumpVisitor_visitReturnStmt(KonohaContext *kctx, IRBuilder *self, kS
 {
 	emit_string("Return", "", "", DUMPER(self)->indent);
 	kExpr* expr = Stmt_getFirstExpr(kctx, stmt);
-	if (expr != NULL && IS_Expr(expr)) {
+	if(expr != NULL && IS_Expr(expr)) {
 		handleExpr(kctx, self, expr);
 	}
 }
@@ -74,11 +74,11 @@ static void DumpVisitor_visitUndefinedStmt(KonohaContext *kctx, IRBuilder *self,
 
 static void DumpVisitor_visitConstExpr(KonohaContext *kctx, IRBuilder *self, kExpr *expr)
 {
-	KUtilsWriteBuffer wb;
+	KGrowingBuffer wb;
 	KLIB Kwb_init(&(kctx->stack->cwb), &wb);
 	KonohaStack sfp[1];
 	kObject *obj = expr->objectConstValue;
-	sfp[0].o = obj;
+	sfp[0].asObject = obj;
 	O_ct(obj)->p(kctx, sfp, 0, &wb, 0);
 	char  *str = (char *) KLIB Kwb_top(kctx, &wb, 0);
 	char buf[128];
@@ -89,7 +89,7 @@ static void DumpVisitor_visitConstExpr(KonohaContext *kctx, IRBuilder *self, kEx
 
 static void DumpVisitor_visitNConstExpr(KonohaContext *kctx, IRBuilder *self, kExpr *expr)
 {
-	KUtilsWriteBuffer wb;
+	KGrowingBuffer wb;
 	KLIB Kwb_init(&(kctx->stack->cwb), &wb);
 	KonohaStack sfp[1];
 	unsigned long unboxVal = expr->unboxConstValue;
@@ -136,7 +136,7 @@ static void DumpVisitor_visitFieldExpr(KonohaContext *kctx, IRBuilder *self, kEx
 
 static void DumpVisitor_visitCallExpr(KonohaContext *kctx, IRBuilder *self, kExpr *expr)
 {
-	KUtilsWriteBuffer wb;
+	KGrowingBuffer wb;
 	KLIB Kwb_init(&(kctx->stack->cwb), &wb);
 	kMethod *mtd = CallExpr_getMethod(expr);
 	KLIB Kwb_printf(kctx, &wb, "CALL: '%s%s'", T_mn(mtd->mn));
@@ -195,25 +195,25 @@ static void DumpVisitor_visitStackTopExpr(KonohaContext *kctx, IRBuilder *self, 
 static void DumpVisitor_init(KonohaContext *kctx, struct IRBuilder *builder, kMethod *mtd)
 {
 	unsigned i;
-	KUtilsWriteBuffer wb;
+	KGrowingBuffer wb;
 	KLIB Kwb_init(&(kctx->stack->cwb), &wb);
 	kParam *pa = Method_param(mtd);
 	KLIB Kwb_printf(kctx, &wb, "METHOD %s%s(", T_mn(mtd->mn));
 	for (i = 0; i < pa->psize; i++) {
-		if (i != 0) {
+		if(i != 0) {
 			KLIB Kwb_write(kctx, &wb, ", ", 2);
 		}
 		KLIB Kwb_printf(kctx, &wb, "%s %s", TY_t(pa->paramtypeItems[i].ty), SYM_t(pa->paramtypeItems[i].fn));
 	}
 	emit_string(KLIB Kwb_top(kctx, &wb, 1), "", ") {", 0);
-	builder->local_fields = (void *) KMALLOC(sizeof(int));
+	builder->local_fields = (void *) KMalloc_UNTRACE(sizeof(int));
 	DUMPER(builder)->indent = 0;
 }
 
 void DumpVisitor_free(KonohaContext *kctx, struct IRBuilder *builder, kMethod *mtd)
 {
 	emit_string("}", "", "", 0);
-	KFREE(builder->local_fields, sizeof(int));
+	KFree(builder->local_fields, sizeof(int));
 }
 
 static IRBuilder *createDumpVisitor(IRBuilder *builder)

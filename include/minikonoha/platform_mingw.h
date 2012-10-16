@@ -61,7 +61,7 @@ extern "C" {
 #define kunused __attribute__((unused))
 // -------------------------------------------------------------------------
 
-static const char *getSystemCharset(void)
+static const char *isSystemCharsetUTF8(void)
 {
 #if defined(K_USING_WINDOWS_)
 	static char codepage[64];
@@ -186,7 +186,7 @@ static kbool_t isDir(const char *path)
 {
 	struct stat buf;
 	char pathbuf[K_PATHMAX];
-	if (stat(formatSystemPath(pathbuf, sizeof(pathbuf), path), &buf) == 0) {
+	if(stat(formatSystemPath(pathbuf, sizeof(pathbuf), path), &buf) == 0) {
 		return S_ISDIR(buf.st_mode);
 	}
 	return false;
@@ -282,7 +282,7 @@ static int isEmptyChunk(const char *t, size_t len)
 static int loadScript(const char *filePath, long uline, void *thunk, int (*evalFunc)(const char*, long, int *, void *))
 {
 	int isSuccessfullyLoading = false;
-	if (isDir(filePath)) {
+	if(isDir(filePath)) {
 		return isSuccessfullyLoading;
 	}
 	FILE *fp = fopen(filePath, "r");
@@ -515,7 +515,7 @@ static PlatformApi* KonohaUtils_getDefaultPlatformApi(void)
 	plat.setjmp_i        = ksetjmp;
 	plat.longjmp_i       = klongjmp;
 	loadIconv(&plat);
-	plat.getSystemCharset = getSystemCharset;
+	plat.isSystemCharsetUTF8 = isSystemCharsetUTF8;
 	plat.printf_i        = printf;
 	plat.vprintf_i       = vprintf;
 	plat.snprintf_i      = snprintf;  // avoid to use Xsnprintf

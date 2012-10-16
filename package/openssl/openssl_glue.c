@@ -9,7 +9,7 @@ extern "C"{
 static void RawPtr_free(KonohaContext *kctx, kObject *po)
 {
 	kRawPtr *o = (kRawPtr*)(po);
-	if (o->rawptr) {
+	if(o->rawptr) {
 		free(o->rawptr);
 	}
 	o->rawptr = NULL;
@@ -25,7 +25,7 @@ static KMETHOD kMD5_Init(KonohaContext *kctx, KonohaStack *sfp)
 	MD5state_st* c = malloc(sizeof(*c));
 	int ret_ = MD5_Init(c);
 	RawPtr_init(kctx, sfp[0].asObject, c);
-	RETURN_(sfp[0].asObject);
+	KReturn(sfp[0].asObject);
 }
 static KMETHOD kMD5_Update(KonohaContext *kctx, KonohaStack *sfp)
 {
@@ -33,7 +33,7 @@ static KMETHOD kMD5_Update(KonohaContext *kctx, KonohaStack *sfp)
 	unsigned char* data = (unsigned char *) S_text(sfp[1].asString);
 	unsigned long len = S_size(sfp[1].asString);
 	int ret_ = MD5_Update(c, data, len);
-	RETURNi_(ret_);
+	KReturnUnboxValue(ret_);
 }
 static KMETHOD kMD5_Final(KonohaContext *kctx, KonohaStack *sfp)
 {
@@ -45,14 +45,14 @@ static KMETHOD kMD5_Final(KonohaContext *kctx, KonohaStack *sfp)
 	for (i = 0; i < MD5_DIGEST_LENGTH; i++) {
 		snprintf(MD_S+i*2, MD5_DIGEST_LENGTH*2+1, "%02x", MD[i]);
 	}
-	RETURN_(KLIB new_kString(kctx, MD_S, MD5_DIGEST_LENGTH*2, StringPolicy_ASCII));
+	KReturn(KLIB new_kString(kctx, MD_S, MD5_DIGEST_LENGTH*2, StringPolicy_ASCII));
 }
 static KMETHOD kSHA1_Init(KonohaContext *kctx, KonohaStack *sfp)
 {
 	SHAstate_st* c = malloc(sizeof(*c));
 	int ret_ = SHA1_Init(c);
 	RawPtr_init(kctx, sfp[0].asObject, c);
-	RETURN_(sfp[0].asObject);
+	KReturn(sfp[0].asObject);
 }
 static KMETHOD kSHA1_Update(KonohaContext *kctx, KonohaStack *sfp)
 {
@@ -60,7 +60,7 @@ static KMETHOD kSHA1_Update(KonohaContext *kctx, KonohaStack *sfp)
 	unsigned char* data = (unsigned char *) S_text(sfp[1].asString);
 	unsigned long len = S_size(sfp[1].asString);
 	int ret_ = SHA1_Update(c, data, len);
-	RETURNi_(ret_);
+	KReturnUnboxValue(ret_);
 }
 static KMETHOD kSHA1_Final(KonohaContext *kctx, KonohaStack *sfp)
 {
@@ -72,7 +72,7 @@ static KMETHOD kSHA1_Final(KonohaContext *kctx, KonohaStack *sfp)
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++) {
 		snprintf(SHA_S+i*2, SHA_DIGEST_LENGTH*2+1, "%02x", SHA[i]);
 	}
-	RETURN_(KLIB new_kString(kctx, SHA_S, SHA_DIGEST_LENGTH*2, StringPolicy_ASCII));
+	KReturn(KLIB new_kString(kctx, SHA_S, SHA_DIGEST_LENGTH*2, StringPolicy_ASCII));
 }
 // --------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ static KMETHOD kSHA1_Final(KonohaContext *kctx, KonohaStack *sfp)
 #define TY_openssl  (ct0->typeId)
 #define TY_Log      (ct1->typeId)
 
-static kbool_t openssl_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t openssl_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	static const char *names[] = {
 		"MD5",
@@ -101,7 +101,7 @@ static kbool_t openssl_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc
 	int i;
 	for (i = 0; i < 2; i++) {
 		Def.structname = names[i];
-		tbls[i] = KLIB kNameSpace_defineClass(kctx, ns, NULL, &Def, pline);
+		tbls[i] = KLIB kNameSpace_defineClass(kctx, ns, NULL, &Def, trace);
 	}
 
 	int FN_x = FN_("x");
@@ -119,17 +119,17 @@ static kbool_t openssl_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc
 	return true;
 }
 
-static kbool_t openssl_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t openssl_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t openssl_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t openssl_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t openssl_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t openssl_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

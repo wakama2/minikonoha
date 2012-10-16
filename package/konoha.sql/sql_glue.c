@@ -211,7 +211,7 @@ static KMETHOD Connection_new(KonohaContext *kctx, KonohaStack *sfp)
 {
 	//DBType type = (DBType)sfp[1].intValue;
 	const char *dbname = S_text(sfp[1].asString);
-	struct _kConnection* con = (struct _kConnection*)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].asObject), 0);
+	struct _kConnection* con = (struct _kConnection*)KLIB new_kObjectDontUseThis(kctx, KGetReturnType(sfp), 0);
 	//switch(type) {
 	//	case USING_MYSQL:
 	con->dspi = &DB__mysql;
@@ -224,14 +224,14 @@ static KMETHOD Connection_new(KonohaContext *kctx, KonohaStack *sfp)
 	//		break;
 	//}
 	con->db = con->dspi->qopen(kctx, dbname);
-	RETURN_(con);
+	KReturn(con);
 }
 
 static KMETHOD Connection_query(KonohaContext *kctx, KonohaStack *sfp)
 {
 	struct _kConnection *c = (struct _kConnection*)sfp[0].asObject;
 	const char *query = S_text(sfp[1].asString);
-	struct _kResultSet* rs = (struct _kResultSet*)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].asObject), 0);
+	struct _kResultSet* rs = (struct _kResultSet*)KLIB new_kObjectDontUseThis(kctx, KGetReturnType(sfp), 0);
 	kqcur_t *qcur = c->dspi->qexec(kctx, c->db, query, rs);
 	if(qcur != NULL) {
 		rs->qcur = qcur;
@@ -243,7 +243,7 @@ static KMETHOD Connection_query(KonohaContext *kctx, KonohaStack *sfp)
 		//DP(rs)->qcurfree = knh_getQueryDSPI(kctx, K_DEFAULT_DSPI)->qcurfree;
 	}
 	KFieldSet(rs, rs->connection, c);
-	RETURN_(rs);
+	KReturn(rs);
 }
 
 static KMETHOD Connection_close(KonohaContext *kctx, KonohaStack *sfp)
@@ -261,7 +261,7 @@ static void ResultSet_init(KonohaContext *kctx, kObject *o, void *conf)
 	rs->qcur = NULL;
 	rs->column_size = 0;
 	rs->column = NULL;
-	kBytes* ba = (kBytes*)KLIB new_kObject(kctx, CT_Bytes, RESULTSET_BUFSIZE);
+	kBytes* ba = (kBytes*)KLIB new_kObjectDontUseThis(kctx, CT_Bytes, RESULTSET_BUFSIZE);
 	KFieldInit(rs, rs->databuf, ba);
 	KFieldInit(rs, rs->connection, K_NULL);
 	rs->qcurfree = NULL;
@@ -271,8 +271,8 @@ static void ResultSet_init(KonohaContext *kctx, kObject *o, void *conf)
 static void ResultSet_free(KonohaContext *kctx, kObject *o)
 {
 	struct _kResultSet *rs = (struct _kResultSet *)o;
-	if (rs != NULL && rs->column_size > 0) {
-		KFREE((void*)rs->column, sizeof(kDBschema) * rs->column_size);
+	if(rs != NULL && rs->column_size > 0) {
+		KFree((void*)rs->column, sizeof(kDBschema) * rs->column_size);
 	}
 }
 
@@ -280,9 +280,9 @@ static void ResultSet_free(KonohaContext *kctx, kObject *o)
 #define _F(F)   (intptr_t)(F)
 #define _KVi(T)  #T, TY_int, T
 
-static kbool_t sql_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t sql_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
-	KRequirePackage("konoha.bytes", pline);
+	KRequirePackage("konoha.bytes", trace);
 
 	static KDEFINE_CLASS ConnectionDef = {
 		STRUCTNAME(Connection),
@@ -298,8 +298,8 @@ static kbool_t sql_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, co
 		.free = ResultSet_free,
 	};
 
-	KonohaClass *cConnection = KLIB kNameSpace_defineClass(kctx, ns, NULL, &ConnectionDef, pline);
-	KonohaClass *cResultSet = KLIB kNameSpace_defineClass(kctx, ns, NULL, &ResultSetDef, pline);
+	KonohaClass *cConnection = KLIB kNameSpace_defineClass(kctx, ns, NULL, &ConnectionDef, trace);
+	KonohaClass *cResultSet = KLIB kNameSpace_defineClass(kctx, ns, NULL, &ResultSetDef, trace);
 
 	KDEFINE_METHOD MethodData[] = {
 		_Public, _F(Connection_new), TY_Connection, TY_Connection, MN_("new"), 1, TY_String, FN_("dbname"),
@@ -318,21 +318,21 @@ static kbool_t sql_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, co
 			_KVi(USING_POSTGRESQL),
 			{}
 	};
-	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), pline);
+	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), trace);
 	return true;
 }
 
-static kbool_t sql_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t sql_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t sql_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t sql_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t sql_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t sql_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

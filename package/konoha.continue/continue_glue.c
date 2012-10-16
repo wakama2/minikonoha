@@ -33,12 +33,12 @@ extern "C" {
 
 // --------------------------------------------------------------------------
 
-static kbool_t continue_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t continue_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t continue_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t continue_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
@@ -58,24 +58,24 @@ static KMETHOD Statement_continue(KonohaContext *kctx, KonohaStack *sfp)
 		if(kStmt_is(CatchContinue, p)) {
 			KLIB kObject_setObject(kctx, stmt, stmt->syn->keyword, TY_Stmt, p);
 			kStmt_typed(stmt, JUMP);
-			RETURNb_(true);
+			KReturnUnboxValue(true);
 		}
 	}
 	SUGAR kStmt_printMessage2(kctx, stmt, NULL, ErrTag, "continue statement not within a loop");
-	RETURNb_((false));
+	KReturnUnboxValue((false));
 }
 
-static kbool_t continue_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t continue_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("continue"), 0, "\"continue\" [ $Symbol ]", 0, 0, NULL, NULL, NULL, Statement_continue, NULL, },
 		{ KW_END, },
 	};
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNS);
 	return true;
 }
 
-static kbool_t continue_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t continue_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
@@ -83,7 +83,7 @@ static kbool_t continue_setupNameSpace(KonohaContext *kctx, kNameSpace *packageN
 KDEFINE_PACKAGE* continue_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
-	KSETPACKNAME(d, "continue", "1.0");
+	KSetPackageName(d, "continue", "1.0");
 	d.initPackage    = continue_initPackage;
 	d.setupPackage   = continue_setupPackage;
 	d.initNameSpace  = continue_initNameSpace;

@@ -39,7 +39,7 @@ struct kExceptionVar {
 	kshortflag_t flag;   kfault_t faultId;
 	kfileline_t  uline;
 	kString     *message;
-	kArray      *stackTraceList;
+	kArray      *StackTraceList;
 };
 
 // Module
@@ -68,10 +68,10 @@ typedef struct {
 
 static void kException_addStackTrace(KonohaContext *kctx, KonohaStack *sfp, kException *e)
 {
-	kMethod *mtd = sfp[K_MTDIDX].mtdNC;
-	KUtilsWriteBuffer wb;
+	kMethod *mtd = sfp[K_MTDIDX].methodCallInfo;
+	KGrowingBuffer wb;
 	KLIB Kwb_init(&kctx->stack->cwb, &wb);
-	kfileline_t uline = sfp[K_RTNIDX].uline;
+	kfileline_t uline = sfp[K_RTNIDX].callerFileLine;
 	if(uline > 0) {
 		const char *file = FileId_t(uline);
 		KLIB Kwb_printf(kctx, &wb, "(%s:%d) %s.%s%s" , PLATAPI shortFilePath(file), (kushort_t)uline, Method_t(mtd));
@@ -89,7 +89,7 @@ static void kException_addStackTrace(KonohaContext *kctx, KonohaStack *sfp, kExc
 //		knh_write_sfp(ctx, cwb->w, type, &sfp[i+1], FMT_line);
 //	}
 	const char *msg = KLIB Kwb_top(kctx, &wb, 1);
-	KLIB kArray_add(kctx, e->stackTraceList, KLIB new_kString(kctx, msg, strlen(msg), 0));
+	KLIB new_kString(kctx, e->StackTraceList, msg, strlen(msg), 0);
 //	if((mtd)->mn != MN_LAMBDA) {
 //		knh_uline_t uline = knh_stack_uline(ctx, sfp);
 //		knh_write_uline(ctx, cwb->w, uline);
@@ -107,9 +107,9 @@ static void kException_addStackTrace(KonohaContext *kctx, KonohaStack *sfp, kExc
 
 static kbool_t isCalledMethod(KonohaContext *kctx, KonohaStack *sfp)
 {
-//	kMethod *mtd = sfp[0].mtdNC;
+//	kMethod *mtd = sfp[0].methodCallInfo;
 //	if(knh_isObject(kctx, mtd) && IS_Method(mtd)) {
-//		//DBG_P("FOUND mtdNC: shift=%d, pc=%d", sfp[-2].shift, sfp[-1].pc);
+//		//DBG_P("FOUND methodCallInfo: shift=%d, pc=%d", sfp[-2].shift, sfp[-1].pc);
 //		return true;
 //	}
 	return false;
@@ -123,9 +123,9 @@ static void Kthrow(KonohaContext *kctx, KonohaStack *sfp)
 		KonohaStack *p = (sfp == NULL) ? kctx->esp : sfp - 1;
 		KonohaStack *bottom = kctx->stack->jump_bottom;
 		while(bottom < p) {
-			if(p[0].mtdNC != NULL && isCalledMethod(kctx, p)) {
+			if(p[0].methodCallInfo != NULL && isCalledMethod(kctx, p)) {
 				kException_addStackTrace(kctx, p+1, e);
-				p[0].mtdNC = 0;
+				p[0].methodCallInfo = 0;
 				//p = p[-1];
 			}
 			p--;
@@ -148,12 +148,12 @@ static KMETHOD System_throw(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD System_getThrownException(KonohaContext *kctx, KonohaStack *sfp)
 {
 	KonohaExceptionContext *ctx = KonohaContext_getExceptionContext(kctx);
-	RETURN_(ctx->thrownException);
+	KReturn(ctx->thrownException);
 }
 
 static KMETHOD Exception_new(KonohaContext *kctx, KonohaStack *sfp)
 {
-	RETURN_(sfp[0].o);
+	KReturn(sfp[0].asObject);
 }
 
 // --------------------------------------------------------------------------
@@ -173,20 +173,20 @@ static void Exception_init(KonohaContext *kctx, kObject *o, void *conf)
 	e->faultId = 0;
 	e->uline = 0;
 	KFieldInit(e, e->message, TS_EMPTY);
-	KFieldInit(e, e->stackTraceList, K_EMPTYARRAY);
+	KFieldInit(e, e->StackTraceList, K_EMPTYARRAY);
 }
 
-static void Exception_reftrace(KonohaContext *kctx, kObject *o, kObjectVisitor *visitor)
+static void Exception_reftrace(KonohaContext *kctx, kObject *o, KObjectVisitor *visitor)
 {
 	BEGIN_REFTRACE(2);
 	kExceptionVar *e = (kExceptionVar*)o;
 	KREFTRACEv(e->message);
-	KREFTRACEv(e->stackTraceList);
+	KREFTRACEv(e->StackTraceList);
 	END_REFTRACE();
 
 }
 
-static void Exception_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void Exception_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
 	KLIB Kwb_printf(kctx, wb, "%s", S_text(v[pos].asException->message));
 }
@@ -196,23 +196,23 @@ static void kModuleException_setup(KonohaContext *kctx, KonohaModule *def, int n
 
 }
 
-static void kModuleException_reftrace(KonohaContext *kctx, KonohaModule *baseh, kObjectVisitor *visitor)
+static void kModuleException_reftrace(KonohaContext *kctx, KonohaModule *baseh, KObjectVisitor *visitor)
 {
 }
 
 static void kModuleException_free(KonohaContext *kctx, KonohaModule *baseh)
 {
-	KFREE(baseh, sizeof(KonohaExceptionModule));
+	KFree(baseh, sizeof(KonohaExceptionModule));
 }
 
-static kbool_t exception_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t exception_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
-	KonohaExceptionModule *mod = (KonohaExceptionModule*)KCALLOC(sizeof(KonohaExceptionModule), 1);
+	KonohaExceptionModule *mod = (KonohaExceptionModule*)KCalloc_UNTRACE(sizeof(KonohaExceptionModule), 1);
 	mod->h.name     = "exception";
 	mod->h.setup    = kModuleException_setup;
 	mod->h.reftrace = kModuleException_reftrace;
 	mod->h.free     = kModuleException_free;
-	KLIB KonohaRuntime_setModule(kctx, MOD_exception, &mod->h, pline);
+	KLIB KonohaRuntime_setModule(kctx, MOD_exception, &mod->h, trace);
 	KDEFINE_CLASS defException = {
 		STRUCTNAME(Exception),
 		.cflag = CFLAG_Exception,
@@ -220,7 +220,7 @@ static kbool_t exception_initPackage(KonohaContext *kctx, kNameSpace *ns, int ar
 		.reftrace = Exception_reftrace,
 		.p     = Exception_p,
 	};
-	mod->cException = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defException, pline);
+	mod->cException = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defException, trace);
 
 	KDEFINE_METHOD MethodData[] = {
 		_Public, _F(Exception_new), TY_Exception,  TY_Exception, MN_("new"), 0, _Public|_Hidden, _F(System_throw), TY_void,  TY_System, MN_("throw"), 1, TY_Exception, FN_("e"),
@@ -231,7 +231,7 @@ static kbool_t exception_initPackage(KonohaContext *kctx, kNameSpace *ns, int ar
 	return true;
 }
 
-static kbool_t exception_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t exception_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
@@ -239,19 +239,19 @@ static kbool_t exception_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFir
 static kStmt* Stmt_lookupTryOrCatchStmtNULL(KonohaContext *kctx, kStmt *stmt)
 {
 	int i;
-	kArray *bka = stmt->parentBlockNULL->stmtList;
+	kArray *bka = stmt->parentBlockNULL->StmtList;
 	ksymbol_t trySym = SYM_("try");
 	ksymbol_t catchSym = SYM_("catch");
 	for(i = 0; kArray_size(bka); i++) {
-		kStmt *s = bka->stmtItems[i];
+		kStmt *s = bka->StmtItems[i];
 		if(s == stmt) {
 			break;
 		}
 	}
 
 	for(i = i-1; i >= 0; i--) {
-		kStmt *s = bka->stmtItems[i];
-		if (s->syn && (s->syn->keyword == trySym || s->syn->keyword == catchSym)) {
+		kStmt *s = bka->StmtItems[i];
+		if(s->syn && (s->syn->keyword == trySym || s->syn->keyword == catchSym)) {
 			return s;
 		}
 	}
@@ -266,24 +266,24 @@ static KMETHOD Statement_try(KonohaContext *kctx, KonohaStack *sfp)
 	kBlock *tryBlock, *catchBlock, *finallyBlock;
 	tryBlock     = SUGAR kStmt_getBlock(kctx, stmt, NULL, KW_BlockPattern, K_NULLBLOCK);
 	ret = SUGAR kBlock_tyCheckAll(kctx, tryBlock,   gma);
-	if (ret == false) {
-		RETURNb_(ret);
+	if(ret == false) {
+		KReturnUnboxValue(ret);
 	}
 
 	catchBlock   = SUGAR kStmt_getBlock(kctx, stmt, NULL, SYM_("catch"),   K_NULLBLOCK);
 	finallyBlock = SUGAR kStmt_getBlock(kctx, stmt, NULL, SYM_("finally"), K_NULLBLOCK);
 	ret = SUGAR kBlock_tyCheckAll(kctx, tryBlock,   gma);
 	ret = SUGAR kBlock_tyCheckAll(kctx, catchBlock, gma);
-	if (ret == false) {
-		RETURNb_(ret);
+	if(ret == false) {
+		KReturnUnboxValue(ret);
 	}
-	if (finallyBlock) {
+	if(finallyBlock) {
 		ret = SUGAR kBlock_tyCheckAll(kctx, finallyBlock, gma);
 	}
 	if(ret) {
 		kStmt_typed(stmt, TRY);
 	}
-	RETURNb_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD Statement_catch(KonohaContext *kctx, KonohaStack *sfp)
@@ -298,7 +298,7 @@ static KMETHOD Statement_catch(KonohaContext *kctx, KonohaStack *sfp)
 	kBlock *catchBlock = SUGAR kStmt_getBlock(kctx, stmt, NULL, KW_BlockPattern, K_NULLBLOCK);
 	kStmt *parentStmt = Stmt_lookupTryOrCatchStmtNULL(kctx, stmt);
 
-	if (catchBlock != K_NULLBLOCK && parentStmt != NULL) {
+	if(catchBlock != K_NULLBLOCK && parentStmt != NULL) {
 		ret = SUGAR kBlock_tyCheckAll(kctx, catchBlock, gma);
 		kExpr *expr = SUGAR kStmt_getExpr(kctx, stmt, KW_ExprPattern, K_NULLEXPR);
 		KLIB kObject_setObject(kctx, parentStmt, KW_ExprPattern, TY_Exception, expr);
@@ -306,9 +306,9 @@ static KMETHOD Statement_catch(KonohaContext *kctx, KonohaStack *sfp)
 		kStmt_done(kctx, stmt);
 	} else {
 		kStmt_printMessage(kctx, stmt, ErrTag, "upper stmt is not try/catch");
-		RETURNb_(false);
+		KReturnUnboxValue(false);
 	}
-	RETURNb_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD Statement_finally(KonohaContext *kctx, KonohaStack *sfp)
@@ -318,19 +318,19 @@ static KMETHOD Statement_finally(KonohaContext *kctx, KonohaStack *sfp)
 	int ret = false;
 	kBlock *finallyBlock = SUGAR kStmt_getBlock(kctx, stmt, NULL, KW_BlockPattern, K_NULLBLOCK);
 
-	if (finallyBlock != K_NULLBLOCK) {
+	if(finallyBlock != K_NULLBLOCK) {
 		kStmt *tryStmt = Stmt_lookupTryOrCatchStmtNULL(kctx, stmt);
-		if (tryStmt != NULL) {
+		if(tryStmt != NULL) {
 			ret = SUGAR kBlock_tyCheckAll(kctx, finallyBlock, gma);
 			KLIB kObject_setObject(kctx, tryStmt, SYM_("finally"), TY_Block, finallyBlock);
 			kStmt_done(kctx, stmt);
 		}
 	}
 
-	RETURNb_(ret);
+	KReturnUnboxValue(ret);
 }
 
-static kbool_t exception_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t exception_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ .keyword = SYM_("try"), Statement_(try), .rule = "\"try\" $Block [ \"catch\" \"(\" $Type $Symbol \")\" catch: $Block ] [ \"finally\" finally: $Block ]",},
@@ -338,11 +338,11 @@ static kbool_t exception_initNameSpace(KonohaContext *kctx, kNameSpace *packageN
 		{ .keyword = SYM_("finally"), Statement_(finally), .rule = "\"finally\" $Block ",},
 		{ .keyword = KW_END, },
 	};
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNS);
 	return true;
 }
 
-static kbool_t exception_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t exception_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

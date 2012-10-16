@@ -55,14 +55,14 @@ struct _kSockAddr {
 static void SockAddr_init(KonohaContext *kctx, kObject *o, void *conf)
 {
 	struct _kSockAddr *sa = (struct _kSockAddr*)o;
-	sa->sockaddr_in = (struct sockaddr_in *)KCALLOC(sizeof(struct sockaddr_in), 1);
+	sa->sockaddr_in = (struct sockaddr_in *)KCalloc_UNTRACE(sizeof(struct sockaddr_in), 1);
 }
 
 static void SockAddr_free(KonohaContext *kctx, kObject *o)
 {
 	struct _kSockAddr *sa = (struct _kSockAddr*)o;
-	if (sa->sockaddr_in != NULL) {
-		KFREE(sa->sockaddr_in, sizeof(struct sockaddr_in));
+	if(sa->sockaddr_in != NULL) {
+		KFree(sa->sockaddr_in, sizeof(struct sockaddr_in));
 		sa->sockaddr_in = NULL;
 	}
 }
@@ -82,7 +82,7 @@ void toSockaddr(struct sockaddr_in *addr, char *ip, const int port, const int fa
 // sockaddr_in* => Map
 //void fromSockaddr(KonohaContext *kctx, struct kMap* info, struct sockaddr_in addr)
 //{
-//	if (info != NULL ) {
+//	if(info != NULL ) {
 //		knh_DataMap_setString(kctx, info, "addr", inet_ntoa(addr.sin_addr));
 //		knh_DataMap_setInt(kctx, info, "port", ntohs(addr.sin_port));
 //		knh_DataMap_setInt(kctx, info, "family", addr.sin_family);
@@ -178,13 +178,13 @@ static int getNfd(kArray *a1, kArray *a2, kArray *a3)
 //				LogText("errstr", strerror(errno))
 //		);
 //	}
-//	RETURNi_(ret);
+//	KReturnUnboxValue(ret);
 //}
 
 //## int System.accept(int socket, SockAddr remoteInfo);
 KMETHOD System_accept(KonohaContext *kctx, KonohaStack* sfp)
 {
-	struct _kSockAddr *sa = (struct _kSockAddr*)sfp[2].o;
+	struct _kSockAddr *sa = (struct _kSockAddr*)sfp[2].asObject;
 	struct sockaddr_in *addr = sa->sockaddr_in;
 	int addrLen = sizeof(struct sockaddr_in);
 
@@ -203,7 +203,7 @@ KMETHOD System_accept(KonohaContext *kctx, KonohaStack* sfp)
 				LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.bind(int socket, String srcIP, int srcPort, int family);
@@ -211,7 +211,7 @@ KMETHOD System_bind(KonohaContext *kctx, KonohaStack* sfp)
 {
 	struct sockaddr_in addr;
 	toSockaddr(&addr,
-			(char*)sfp[2].s,
+			(char*)sfp[2].asString,
 			WORD2INT(sfp[3].intValue),
 			WORD2INT(sfp[4].intValue)
 	);
@@ -226,7 +226,7 @@ KMETHOD System_bind(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.close(int fd);
@@ -241,7 +241,7 @@ KMETHOD System_close(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.connect(int socket, String dstIP, int dstPort, int family);
@@ -249,7 +249,7 @@ KMETHOD System_connect(KonohaContext *kctx, KonohaStack* sfp)
 {
 	struct sockaddr_in addr;
 	toSockaddr(&addr,
-				(char*)S_text(sfp[2].s),
+				(char*)S_text(sfp[2].asString),
 				WORD2INT(sfp[3].intValue),
 				WORD2INT(sfp[4].intValue)
 	);
@@ -265,7 +265,7 @@ KMETHOD System_connect(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.listen(int socket, int backlog);
@@ -279,7 +279,7 @@ KMETHOD System_listen(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## String System.getsockname(int socket);
@@ -298,7 +298,7 @@ KMETHOD System_listen(KonohaContext *kctx, KonohaStack* sfp)
 //	} else {
 //		KNH_NTRACE2(kctx, "konoha.socket.name ", K_PERROR, KNH_LDATA0);
 //	}
-//	RETURN_(ret_s);
+//	KReturn(ret_s);
 //}
 
 //## int System.getsockopt(int socket, int option);
@@ -324,7 +324,7 @@ KMETHOD System_getsockopt(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.setsockopt(int socket, int option, int value);
@@ -344,7 +344,7 @@ KMETHOD System_setsockopt(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## Map System.getpeername(int socket);
@@ -364,13 +364,13 @@ KMETHOD System_setsockopt(KonohaContext *kctx, KonohaStack* sfp)
 //		KNH_NTRACE2(kctx, "konoha.socket.peername ", K_PERROR, KNH_LDATA0);
 //	}
 //
-//	RETURN_(ret_s );
+//	KReturn(ret_s );
 //}
 
 //## int System.recv(int socket, byte[] buffer, int flags);
 static KMETHOD System_recv(KonohaContext *kctx, KonohaStack* sfp)
 {
-	kBytes *ba  = sfp[2].ba;
+	kBytes *ba  = sfp[2].asBytes;
 	int ret = recv(WORD2INT(sfp[1].intValue),
 					  ba->buf,
 					  ba->bytesize,
@@ -381,7 +381,7 @@ static KMETHOD System_recv(KonohaContext *kctx, KonohaStack* sfp)
 				LogText("perror", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.recvfrom(int socket, byte[] buffer, int flags, Map remoteInfo);
@@ -391,7 +391,7 @@ static KMETHOD System_recv(KonohaContext *kctx, KonohaStack* sfp)
 //	int addrLen = sizeof(addr);
 //	memset(&addr, 0, addrLen);
 //
-//	kBytes *ba  = sfp[2].ba;
+//	kBytes *ba  = sfp[2].asBytes;
 //	int ret = recvfrom(WORD2INT(sfp[1].intValue),
 //			  	  	  	   ba->buf,
 //			  	  	  	   ba->bytesize,
@@ -403,7 +403,7 @@ static KMETHOD System_recv(KonohaContext *kctx, KonohaStack* sfp)
 //	} else {
 //		KNH_NTRACE2(kctx, "konoha.socket.recvfrom ", K_PERROR, KNH_LDATA0);
 //	}
-//	RETURNi_(ret);
+//	KReturnUnboxValue(ret);
 //}
 
 //## int System.select(int[] readsock, int[] writesock, int[] exceptsock, long timeoutSec, long timeoutUSec);
@@ -441,13 +441,13 @@ static KMETHOD System_select(KonohaContext *kctx, KonohaStack* sfp)
 		KLIB kArray_clear(kctx, a2, 0);
 		KLIB kArray_clear(kctx, a3, 0);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.send(int socket, byte[] message, int flags);
 static KMETHOD System_send(KonohaContext *kctx, KonohaStack* sfp)
 {
-	kBytes *ba = sfp[2].ba;
+	kBytes *ba = sfp[2].asBytes;
 	// Broken Pipe Signal Mask
 #if !(defined(__APPLE__) || defined(__NetBSD__))
 	__sighandler_t oldset = signal(SIGPIPE, SIG_IGN);
@@ -481,15 +481,15 @@ static KMETHOD System_send(KonohaContext *kctx, KonohaStack* sfp)
 			);
 		}
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.sendto(int socket, Bytes message, int flags, String dstIP, int dstPort, int family);
 static KMETHOD System_sendto(KonohaContext *kctx, KonohaStack* sfp)
 {
-	kBytes *ba = sfp[2].ba;
+	kBytes *ba = sfp[2].asBytes;
 	struct sockaddr_in addr;
-	kString* s = sfp[4].s;
+	kString* s = sfp[4].asString;
 	toSockaddr(&addr, (char*)S_text(s), WORD2INT(sfp[5].intValue), WORD2INT(sfp[6].intValue));
 	// Broken Pipe Signal Mask
 #if !(defined(__APPLE__) || defined(__NetBSD__))
@@ -524,7 +524,7 @@ static KMETHOD System_sendto(KonohaContext *kctx, KonohaStack* sfp)
 			);
 		}
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.shutdown(int socket, int how);
@@ -538,7 +538,7 @@ KMETHOD System_shutdown(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.sockatmark(int socket);
@@ -552,7 +552,7 @@ KMETHOD System_sockatmark(KonohaContext *kctx, KonohaStack* sfp)
 			LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.socket(int family, int type, int protocol);
@@ -568,7 +568,7 @@ KMETHOD System_socket(KonohaContext *kctx, KonohaStack* sfp)
 				LogText("errstr", strerror(errno))
 		);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.socketpair(int family, int type, int protocol, int[] pairCSock);
@@ -593,7 +593,7 @@ static KMETHOD System_socketpair(KonohaContext *kctx, KonohaStack* sfp)
 			);
 		}
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 
@@ -601,7 +601,7 @@ static KMETHOD System_socketpair(KonohaContext *kctx, KonohaStack* sfp)
 
 static KMETHOD SockAddr_new (KonohaContext *kctx, KonohaStack *sfp)
 {
-	RETURN_(KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].o), 0));
+	KReturn(KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), 0));
 }
 
 // --------------------------------------------------------------------------
@@ -619,7 +619,7 @@ static KMETHOD SockAddr_new (KonohaContext *kctx, KonohaStack *sfp)
 
 #define _KVi(T) #T, TY_int, T
 
-static kbool_t socket_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t socket_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	KDEFINE_CLASS defSockAddr = {
 		STRUCTNAME(SockAddr),
@@ -627,7 +627,7 @@ static kbool_t socket_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc,
 		.init = SockAddr_init,
 		.free = SockAddr_free,
 	};
-	KonohaClass *cSockAddr = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defSockAddr, pline);
+	KonohaClass *cSockAddr = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defSockAddr, trace);
 	kparamtype_t pi = {TY_int, FN_("intValue")};
 	KonohaClass *CT_IntArray = KLIB KonohaClass_Generics(kctx, CT_Array, TY_int, 1, &pi);
 	ktype_t TY_intArray = CT_IntArray->typeId;
@@ -649,10 +649,11 @@ static kbool_t socket_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc,
 		_Public|_Static|_Const|_Im, _F(System_socketpair), TY_int, TY_System, MN_("socketpair"), 4, TY_int, FN_("family"), TY_int, FN_("type"), TY_int, FN_("protocol"), TY_intArray, FN_("pairsock"),
 		_Public|_Const|_Im, _F(SockAddr_new), TY_SockAddr, TY_SockAddr, MN_("new"), 0,
 		// the function below uses Bytes
-		_Public|_Static|_Const|_Im, _F(System_sendto), TY_int, TY_System, MN_("sendto"), 6, TY_int, FN_("socket"), TY_Bytes, FN_("msg"), TY_int, FN_("flag"), TY_String, FN_("dstIP"), TY_int, FN_("dstPort"), TY_int, FN_("family"),
-		_Public|_Static|_Const|_Im, _F(System_recv), TY_int, TY_System, MN_("recv"), 3, TY_int, FN_("fd"), TY_Bytes, FN_("buf"), TY_int, FN_("flags"),
+		// FIXME
+//		_Public|_Static|_Const|_Im, _F(System_sendto), TY_int, TY_System, MN_("sendto"), 6, TY_int, FN_("socket"), TY_Bytes, FN_("msg"), TY_int, FN_("flag"), TY_String, FN_("dstIP"), TY_int, FN_("dstPort"), TY_int, FN_("family"),
+//		_Public|_Static|_Const|_Im, _F(System_recv), TY_int, TY_System, MN_("recv"), 3, TY_int, FN_("fd"), TY_Bytes, FN_("buf"), TY_int, FN_("flags"),
 //		_Public|_Static|_Const|_Im, _F(System_recvfrom), TY_int, TY_System, MN_("recvfrom"), 4, TY_int, FN_x, TY_Bytes, FN_y, TY_int, FN_z, TY_Map, FN_v,
-		_Public|_Static|_Const|_Im, _F(System_send), TY_int, TY_System, MN_("send"), 3, TY_int, FN_("fd"), TY_Bytes, FN_("msg"), TY_int, FN_("flags"),
+//		_Public|_Static|_Const|_Im, _F(System_send), TY_int, TY_System, MN_("send"), 3, TY_int, FN_("fd"), TY_Bytes, FN_("msg"), TY_int, FN_("flags"),
 		DEND,
 	};
 	KLIB kNameSpace_loadMethodData(kctx, ns, MethodData);
@@ -713,21 +714,21 @@ static kbool_t socket_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc,
 			{_KVi(SOMAXCONN)},
 			{}
 	};
-	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), pline);
+	KLIB kNameSpace_loadConstData(kctx, ns, KonohaConst_(IntData), trace);
 	return true;
 }
 
-static kbool_t socket_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t socket_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t socket_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t socket_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t socket_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t socket_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

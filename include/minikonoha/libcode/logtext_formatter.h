@@ -92,7 +92,7 @@ static char *writeUnsingedIntToBuffer(uintptr_t uint, char *const buftop, const 
 		uint /= 10;
 		buftop[i] = '0' + tmp;
 		++i;
-		if (uint == 0)
+		if(uint == 0)
 			break;
 	}
 	reverse(buftop, buftop + i, i);
@@ -114,8 +114,8 @@ static char* writeKeyToBuffer(const char *key, size_t keylen, char *buftop, char
 	return buftop;
 }
 
-#define HasFault    (SystemFault|ScriptFault|DataFault|ExternalFault)
-#define HasLocation (PeriodicPoint|PreactionPoint|ActionPoint|SecurityAudit)
+#define HasFault    (SystemFault|SoftwareFault|DataFault|ExternalFault)
+#define HasLocation (PeriodicPoint|ResponseCheckPoint|SystemChangePoint|SecurityAudit)
 
 static char* writePolicyToBuffer(logconf_t *logconf, char *buftop, char *bufend)
 {
@@ -125,10 +125,10 @@ static char* writePolicyToBuffer(logconf_t *logconf, char *buftop, char *bufend)
 		if(TFLAG_is(int, logconf->policy, PeriodicPoint)) {
 			buftop = writeFixedTextToBuffer(TEXTSIZE("Periodic,"), buftop, bufend);
 		}
-		if(TFLAG_is(int, logconf->policy, PreactionPoint)) {
+		if(TFLAG_is(int, logconf->policy, ResponseCheckPoint)) {
 			buftop = writeFixedTextToBuffer(TEXTSIZE("PreAction,"), buftop, bufend);
 		}
-		if(TFLAG_is(int, logconf->policy, ActionPoint)) {
+		if(TFLAG_is(int, logconf->policy, SystemChangePoint)) {
 			buftop = writeFixedTextToBuffer(TEXTSIZE("Action,"), buftop, bufend);
 		}
 		if(TFLAG_is(int, logconf->policy, SecurityAudit)) {
@@ -145,8 +145,8 @@ static char* writePolicyToBuffer(logconf_t *logconf, char *buftop, char *bufend)
 		if(TFLAG_is(int, logconf->policy, SystemFault)) {
 			buftop = writeFixedTextToBuffer(TEXTSIZE("SystemFault,"), buftop, bufend);
 		}
-		if(TFLAG_is(int, logconf->policy, ScriptFault)) {
-			buftop = writeFixedTextToBuffer(TEXTSIZE("ScriptFault,"), buftop, bufend);
+		if(TFLAG_is(int, logconf->policy, SoftwareFault)) {
+			buftop = writeFixedTextToBuffer(TEXTSIZE("SoftwareFault,"), buftop, bufend);
 		}
 		if(TFLAG_is(int, logconf->policy, DataFault)) {
 			buftop = writeFixedTextToBuffer(TEXTSIZE("DataFault,"), buftop, bufend);

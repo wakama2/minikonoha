@@ -36,8 +36,8 @@
 extern "C"{
 #endif
 
-typedef const struct _kFILE kFILE;
-struct _kFILE {
+typedef const struct kFILEVar kFILE;
+struct kFILEVar {
 	KonohaObjectHeader h;
 	FILE *fp;
 	const char *realpath;
@@ -47,17 +47,17 @@ struct _kFILE {
 
 static void File_init(KonohaContext *kctx, kObject *o, void *conf)
 {
-	struct _kFILE *file = (struct _kFILE*)o;
+	struct kFILEVar *file = (struct kFILEVar*)o;
 	file->fp = (conf != NULL) ? conf : NULL;
 	file->realpath = NULL;
 }
 
 static void File_free(KonohaContext *kctx, kObject *o)
 {
-	struct _kFILE *file = (struct _kFILE*)o;
-	if (file->fp != NULL) {
+	struct kFILEVar *file = (struct kFILEVar*)o;
+	if(file->fp != NULL) {
 		int ret = fclose(file->fp);
-		if (ret != 0) {
+		if(ret != 0) {
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 					LogText("@", "fclose"),
@@ -72,7 +72,7 @@ static void File_free(KonohaContext *kctx, kObject *o)
 	}
 }
 
-static void File_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void File_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
 	kFILE *file = (kFILE*)v[pos].asObject;
 	FILE *fp = file->fp;
@@ -87,18 +87,18 @@ static KMETHOD System_fopen(KonohaContext *kctx, KonohaStack *sfp)
 	const char *mode = IS_NULL(sfp[2].asString) ? "r" : S_text(sfp[2].asString);
 	FILE *fp = fopen(S_text(s), mode);
 	DBG_P("fp=%p, filepath=%s", fp, S_text(s));
-	if (fp == NULL) {
+	if(fp == NULL) {
 		// TODO: throw
-		OLDTRACE_SWITCH_TO_KTrace(_SystemFault|_ScriptFault,
+		OLDTRACE_SWITCH_TO_KTrace(_SystemFault|_SoftwareFault,
 				LogText("@", "fopen"),
 				LogText("path", S_text(s)),
 				LogUint("mode", mode),
 				LogText("errstr", strerror(errno))
 		);
 	}
-	struct _kFILE *file = (struct _kFILE*)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].asObject), (uintptr_t)fp);
+	struct kFILEVar *file = (struct kFILEVar*)KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), (uintptr_t)fp);
 	file->realpath = realpath(S_text(s), NULL);
-	RETURN_(file);
+	KReturn(file);
 }
 
 //## @Native int File.read(Bytes buf, int offset, int len);
@@ -108,18 +108,17 @@ static KMETHOD File_read(KonohaContext *kctx, KonohaStack *sfp)
 	FILE *fp = file->fp;
 	size_t size = 0;
 	if(fp != NULL) {
-		kBytes *ba = sfp[1].ba;
+		kBytes *ba = sfp[1].asBytes;
 		size_t offset = (size_t)sfp[2].intValue;
 		size_t len = (size_t)sfp[3].intValue;
 		size = ba->bytesize;
 		if(!(offset < size)) {
-			// TODO: throw
-			kfileline_t uline = sfp[K_RTNIDX].uline;
-			kreportf(CritTag, uline, "OutOfRange!!, offset=%d, size=%d", offset, size);
+			KMakeTrace(trace, sfp);  // FIXME
+			kreportf(CritTag, trace, "OutOfRange!!, offset=%d, size=%d", offset, size);
 		}
 		if(len == 0) len = size - offset;
 		size = fread(ba->buf + offset, 1, len, fp);
-		if (size == 0 && ferror(fp) != 0){
+		if(size == 0 && ferror(fp) != 0){
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 					LogText("@", "fread"),
@@ -128,7 +127,7 @@ static KMETHOD File_read(KonohaContext *kctx, KonohaStack *sfp)
 			clearerr(fp);
 		}
 	}
-	RETURNi_(size);
+	KReturnUnboxValue(size);
 }
 
 //## @Native int File.write(Bytes buf, int offset, int len);
@@ -138,13 +137,13 @@ static KMETHOD File_write(KonohaContext *kctx , KonohaStack *sfp)
 	FILE *fp = file->fp;
 	size_t size = 0;
 	if(fp != NULL) {
-		kBytes *ba = sfp[1].ba;
+		kBytes *ba = sfp[1].asBytes;
 		size_t offset = (size_t)sfp[2].intValue;
 		size_t len = (size_t)sfp[3].intValue;
 		size = ba->bytesize;
 		if(len == 0) len = size - offset;
 		size = fwrite(ba->buf + offset, 1, len, fp);
-		if (size < len) {
+		if(size < len) {
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 					LogText("@", "fwrite"),
@@ -152,17 +151,17 @@ static KMETHOD File_write(KonohaContext *kctx , KonohaStack *sfp)
 			);
 		}
 	}
-	RETURNi_(size);
+	KReturnUnboxValue(size);
 }
 
 //## @Native void File.close();
 static KMETHOD File_close(KonohaContext *kctx, KonohaStack *sfp)
 {
-	struct _kFILE *file = (struct _kFILE*)sfp[0].asObject;
+	struct kFILEVar *file = (struct kFILEVar*)sfp[0].asObject;
 	FILE *fp = file->fp;
 	if(fp != NULL) {
 		int ret = fclose(fp);
-		if (ret != 0) {
+		if(ret != 0) {
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 					LogText("@", "fclose"),
@@ -171,7 +170,7 @@ static KMETHOD File_close(KonohaContext *kctx, KonohaStack *sfp)
 		}
 		file->fp = NULL;
 	}
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## @Native int File.getC();
@@ -179,9 +178,9 @@ static KMETHOD File_getC(KonohaContext *kctx, KonohaStack *sfp)
 {
 	FILE *fp = ((kFILE*)sfp[0].asObject)->fp;
 	int ch = EOF;
-	if (fp != NULL) {
+	if(fp != NULL) {
 		ch = fgetc(fp);
-		if (ch == EOF && ferror(fp) != 0) {
+		if(ch == EOF && ferror(fp) != 0) {
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(LOGPOL_DEBUG | _DataFault,
 					LogText("@", "fgetc"),
@@ -189,25 +188,25 @@ static KMETHOD File_getC(KonohaContext *kctx, KonohaStack *sfp)
 			);
 		}
 	}
-	RETURNi_(ch);
+	KReturnUnboxValue(ch);
 }
 
 //## @Native boolean File.putC(int ch);
 static KMETHOD File_putC(KonohaContext *kctx, KonohaStack *sfp)
 {
 	FILE *fp = ((kFILE*)sfp[0].asObject)->fp;
-	if (fp != NULL) {
+	if(fp != NULL) {
 		int ch = fputc(sfp[1].intValue, fp);
-		if (ch == EOF) {
+		if(ch == EOF) {
 			// TODO: throw
 			OLDTRACE_SWITCH_TO_KTrace(LOGPOL_DEBUG | _DataFault,
 					LogText("@", "fputc"),
 					LogText("errstr", strerror(errno))
 			);
 		}
-		RETURNb_(ch != EOF);
+		KReturnUnboxValue(ch != EOF);
 	}
-	RETURNb_(0);
+	KReturnUnboxValue(0);
 }
 
 //## int System.umask(int cmask)
@@ -215,7 +214,7 @@ static KMETHOD System_umask(KonohaContext *kctx, KonohaStack *sfp)
 {
 	mode_t cmask = sfp[1].intValue;
 	mode_t ret = umask(cmask);
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.mkdir(String path, int mode)
@@ -227,7 +226,7 @@ static KMETHOD System_mkdir(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.rmdir(String path)
@@ -238,7 +237,7 @@ static KMETHOD System_rmdir(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.truncate(String path, int length)
@@ -250,7 +249,7 @@ static KMETHOD System_truncate(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.chmod(String path, int mode)
@@ -262,7 +261,7 @@ static KMETHOD System_chmod(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 // --------------------------------------------------------------------------
@@ -278,9 +277,9 @@ static KMETHOD System_chmod(KonohaContext *kctx, KonohaStack *sfp)
 #define TY_File         cFile->typeId
 #define IS_File(O)      ((O)->h.ct == CT_File)
 
-static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
-	KImportPackage(ns, "konoha.bytes", pline);
+	KImportPackage(ns, "konoha.bytes", trace);
 	KDEFINE_CLASS defFile = {
 		STRUCTNAME(FILE),
 		.cflag = kClass_Final,
@@ -288,7 +287,7 @@ static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, c
 		.free  = File_free,
 		.p     = File_p,
 	};
-	KonohaClass *cFile = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defFile, pline);
+	KonohaClass *cFile = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defFile, trace);
 
 	KDEFINE_METHOD MethodData[] = {
 		_Public|_Static|_Const|_Im, _F(System_fopen), TY_File, TY_System, MN_("fopen"), 2, TY_String, FN_("path"), TY_String, FN_("mode"),
@@ -301,25 +300,26 @@ static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, c
 		_Public|_Static|_Const|_Im, _F(System_truncate), TY_int, TY_System, MN_("truncate"), 2, TY_String, FN_("path"), TY_int, FN_("length"),
 		_Public|_Static|_Const|_Im, _F(System_chmod), TY_int, TY_System, MN_("chmod"), 2, TY_String, FN_("path"), TY_int, FN_("mode"),
 		// the function below uses Bytes
-		_Public|_Const, _F(File_write), TY_int, TY_File, MN_("write"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
-		_Public|_Const, _F(File_read), TY_int, TY_File, MN_("read"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
+		// FIXME
+//		_Public|_Const, _F(File_write), TY_int, TY_File, MN_("write"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
+//		_Public|_Const, _F(File_read), TY_int, TY_File, MN_("read"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
 		DEND,
 	};
 	KLIB kNameSpace_loadMethodData(kctx, ns, MethodData);
 	return true;
 }
 
-static kbool_t file_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t file_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t file_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t file_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t file_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t file_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

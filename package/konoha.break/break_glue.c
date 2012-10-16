@@ -33,12 +33,12 @@ extern "C" {
 
 // --------------------------------------------------------------------------
 
-static kbool_t break_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t break_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t break_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t break_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
@@ -58,24 +58,24 @@ static KMETHOD Statement_break(KonohaContext *kctx, KonohaStack *sfp)
 		if(kStmt_is(CatchBreak, p)) {
 			KLIB kObject_setObject(kctx, stmt, stmt->syn->keyword, TY_Stmt, p);
 			kStmt_typed(stmt, JUMP);
-			RETURNb_(true);
+			KReturnUnboxValue(true);
 		}
 	}
 	SUGAR kStmt_printMessage2(kctx, stmt, NULL, ErrTag, "break statement not within a loop");
-	RETURNb_(false);
+	KReturnUnboxValue(false);
 }
 
-static kbool_t break_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t break_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("break"), 0, "\"break\" [ $Symbol ]", 0, 0, NULL, NULL, NULL, Statement_break, NULL, },
 		{ KW_END, },
 	};
-	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNameSpace);
+	SUGAR kNameSpace_defineSyntax(kctx, ns, SYNTAX, packageNS);
 	return true;
 }
 
-static kbool_t break_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t break_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
@@ -83,7 +83,7 @@ static kbool_t break_setupNameSpace(KonohaContext *kctx, kNameSpace *packageName
 KDEFINE_PACKAGE* break_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
-	KSETPACKNAME(d, "break", "1.0");
+	KSetPackageName(d, "break", "1.0");
 	d.initPackage    = break_initPackage;
 	d.setupPackage   = break_setupPackage;
 	d.initNameSpace  = break_initNameSpace;

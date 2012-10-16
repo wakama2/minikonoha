@@ -49,7 +49,7 @@ static kString* SugarContext_vprintMessage(KonohaContext *kctx, kinfotag_t tagle
 	SugarContext *sugarContext = KonohaContext_getSugarContext(kctx);
 	if(isPrintMessage(kctx, sugarContext, taglevel)) {
 		const char *msg = TAG_t(taglevel);
-		KUtilsWriteBuffer wb;
+		KGrowingBuffer wb;
 		KLIB Kwb_init(&sugarContext->errorMessageBuffer, &wb);
 		size_t pos = wb.m->bytesize;
 		if(uline > 0) {
@@ -63,11 +63,11 @@ static kString* SugarContext_vprintMessage(KonohaContext *kctx, kinfotag_t tagle
 		size_t len = wb.m->bytesize - pos;
 		KLIB Kwb_vprintf(kctx, &wb, fmt, ap);
 		msg = KLIB Kwb_top(kctx, &wb, 1);
-		kreportf(taglevel, uline, "%s", msg + len);
-		kString *emsg = KLIB new_kString(kctx, msg, strlen(msg), 0);
-		KLIB kArray_add(kctx, sugarContext->errorMessageList, emsg);
+		KTraceInfo trace = {NULL, uline};
+		kreportf(taglevel, &trace, "%s", msg + len);
+		kString *emsg = KLIB new_kString(kctx, sugarContext->errorMessageList, msg, strlen(msg), 0);
 		if(taglevel == ErrTag || taglevel == CritTag) {
-			sugarContext->errorMessageCount ++;
+			sugarContext->errorMessageCount++;
 		}
 		return emsg;
 	}
@@ -119,12 +119,12 @@ static kfileline_t kExpr_uline(KonohaContext *kctx, kExpr *expr, kfileline_t uli
 	if(a != NULL && IS_Array(a)) {
 		size_t i;
 		for(i=0; i < kArray_size(a); i++) {
-			tk = a->tokenItems[i];
+			tk = a->TokenItems[i];
 			if(IS_Token(tk) && tk->uline >= uline) {
 				return tk->uline;
 			}
 			if(IS_Expr(tk)) {
-				return kExpr_uline(kctx, a->exprItems[i], uline);
+				return kExpr_uline(kctx, a->ExprItems[i], uline);
 			}
 		}
 	}

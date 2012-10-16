@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <dirent.h>
-#include "fdconfig.h"
+//#include "fdconfig.h"
 
 #ifndef PATHMAX
 #define PATHMAX 256
@@ -42,20 +42,20 @@ extern "C"{
 #endif
 /* ------------------------------------------------------------------------ */
 
-typedef const struct _kStat kStat;
-struct _kStat {
+typedef const struct kStatVar kStat;
+struct kStatVar {
 	KonohaObjectHeader h;
 	struct stat *stat;
 };
 
-typedef const struct _kDIR kDIR;
-struct _kDIR {
+typedef const struct kDirVar kDIR;
+struct kDirVar {
 	KonohaObjectHeader h;
 	DIR *dirp;
 };
 
-typedef const struct _kDirent kDirent;
-struct _kDirent {
+typedef const struct kDirentVar kDirent;
+struct kDirentVar {
 	KonohaObjectHeader h;
 	struct dirent *entry;
 };
@@ -64,7 +64,7 @@ struct _kDirent {
 
 static void kStat_init(KonohaContext *kctx, kObject *o, void *conf)
 {
-	struct _kStat *stat = (struct _kStat*)o;
+	struct kStatVar *stat = (struct kStatVar*)o;
 	if(conf != NULL) {
 		stat->stat = (struct stat *)PLATAPI malloc_i(sizeof(struct stat));
 		memcpy(stat->stat, conf, sizeof(struct stat));
@@ -76,27 +76,27 @@ static void kStat_init(KonohaContext *kctx, kObject *o, void *conf)
 
 static void kStat_free(KonohaContext *kctx, kObject *o)
 {
-	struct _kStat *stat = (struct _kStat *)o;
+	struct kStatVar *stat = (struct kStatVar *)o;
 	if(stat->stat != NULL) {
 		PLATAPI free_i(stat->stat);
 		stat->stat = NULL;
 	}
 }
 
-static void kStat_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void kStat_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
 	KLIB Kwb_printf(kctx, wb, "Stat :%p", v[pos].asObject);
 }
 
 static void kDIR_init(KonohaContext *kctx, kObject *o, void *conf)
 {
-	struct _kDIR *dir = (struct _kDIR*)o;
+	struct kDirVar *dir = (struct kDirVar*)o;
 	dir->dirp = conf;
 }
 
 static void kDIR_free(KonohaContext *kctx, kObject *o)
 {
-	struct _kDIR *dir = (struct _kDIR*)o;
+	struct kDirVar *dir = (struct kDirVar*)o;
 	if(dir->dirp != NULL) {
 		int ret = closedir(dir->dirp);
 		if(ret == -1) {
@@ -106,7 +106,7 @@ static void kDIR_free(KonohaContext *kctx, kObject *o)
 	}
 }
 
-static void kDIR_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void kDIR_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
 	kDIR *dir = (kDIR*)v[pos].asObject;
 	DIR *dirp = dir->dirp;
@@ -115,7 +115,7 @@ static void kDIR_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuff
 
 static void kDirent_init(KonohaContext *kctx, kObject *o, void *conf)
 {
-	struct _kDirent *dirent = (struct _kDirent*)o;
+	struct kDirentVar *dirent = (struct kDirentVar*)o;
 	if(conf != NULL) {
 		dirent->entry = (struct dirent *)PLATAPI malloc_i(sizeof(struct dirent));
 		memcpy(dirent->entry, conf, sizeof(struct dirent));
@@ -127,16 +127,16 @@ static void kDirent_init(KonohaContext *kctx, kObject *o, void *conf)
 
 static void kDirent_free(KonohaContext *kctx, kObject *o)
 {
-	struct _kDirent *dirent = (struct _kDirent*)o;
+	struct kDirentVar *dirent = (struct kDirentVar*)o;
 	if(dirent->entry != NULL) {
 		PLATAPI free_i(dirent->entry);
 		dirent->entry = NULL;
 	}
 }
 
-static void kDirent_p(KonohaContext *kctx, KonohaValue *v, int pos, KUtilsWriteBuffer *wb)
+static void kDirent_p(KonohaContext *kctx, KonohaValue *v, int pos, KGrowingBuffer *wb)
 {
-	struct _kDirent *dirent = (struct _kDirent *)v[pos].asObject;
+	struct kDirentVar *dirent = (struct kDirentVar *)v[pos].asObject;
 	struct dirent *entry = dirent->entry;
 	KLIB Kwb_printf(kctx, wb, "Dirent :%p", entry);
 }
@@ -153,7 +153,7 @@ static KMETHOD System_lseek(KonohaContext *kctx, KonohaStack *sfp)
 	int offset = sfp[2].intValue;
 	int whence = sfp[3].intValue;
 	off_t ret_offset = lseek(fd, offset, whence);
-	if (ret_offset == -1) {
+	if(ret_offset == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_DataFault,
 			   LogText("@", "lseek"),
@@ -162,7 +162,7 @@ static KMETHOD System_lseek(KonohaContext *kctx, KonohaStack *sfp)
 			   LogText("errstr", strerror(errno))
 			);
 	}
-	RETURNi_((int)ret_offset);
+	KReturnUnboxValue((int)ret_offset);
 }
 
 //## @Native String System.getCwd()
@@ -170,15 +170,16 @@ static KMETHOD System_getCwd(KonohaContext *kctx, KonohaStack *sfp)
 {
 	char filepath[256] = {0};
 	char *cwd = getcwd(filepath, 256);
-	RETURN_(KLIB new_kString(kctx, cwd, strlen(cwd), 0));
+	KReturn(KLIB new_kString(kctx, OnStack, cwd, strlen(cwd), 0));
 }
+
 //## boolean System.ftruncate(int fd, int length)
 static KMETHOD System_ftruncate(KonohaContext *kctx, KonohaStack *sfp)
 {
 	int fd = sfp[1].intValue;
 	int length = sfp[2].intValue;
 	int ret = ftruncate(fd, length);
-	if (ret != 0) {
+	if(ret != 0) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "ftruncate"),
@@ -186,7 +187,7 @@ static KMETHOD System_ftruncate(KonohaContext *kctx, KonohaStack *sfp)
 			   LogText("errstr", strerror(errno))
 			);
 	}
-	RETURNb_(ret == 0);
+	KReturnUnboxValue(ret == 0);
 }
 
 //## boolean System.fchmod(int fd, int length)
@@ -195,7 +196,7 @@ static KMETHOD System_fchmod(KonohaContext *kctx, KonohaStack *sfp)
 	int fd = sfp[1].intValue;
 	int mode = sfp[2].intValue;
 	int ret = fchmod(fd, mode);
-	if (ret != -1) {
+	if(ret != -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "fchmod"),
@@ -203,7 +204,7 @@ static KMETHOD System_fchmod(KonohaContext *kctx, KonohaStack *sfp)
 			   LogText("errstr", strerror(errno))
 			);
 	}
-	RETURNb_(ret == 0);
+	KReturnUnboxValue(ret == 0);
 }
 
 // TODO: isn't ioctl difficult for script users? should we support this?
@@ -214,15 +215,15 @@ static KMETHOD System_fchmod(KonohaContext *kctx, KonohaStack *sfp)
 //	FILE *fp = file->fp;
 //	int request  = int_to(int, sfp[1]);
 //	char *argp = String_to(char*, sfp[2]);
-//	if (fp == NULL) RETURNb_(0);
+//	if(fp == NULL) KReturnUnboxValue(0);
 //	int fd = fileno(fp);
-//	if (fd == -1) {
-//		RETURNb_(0);
+//	if(fd == -1) {
+//		KReturnUnboxValue(0);
 //	}
 //	int ret = ioctl(fd, request, argp);
 //	KNH_NTRACE2(ctx, "ioctl", ret != -1 ? K_OK : K_PERROR, KNH_LDATA(
 //				));
-//	RETURNb_(ret != -1);
+//	KReturnUnboxValue(ret != -1);
 //}
 
 // NOTE: sys_flock can use for a file, only for
@@ -232,7 +233,7 @@ static KMETHOD System_flock(KonohaContext *kctx, KonohaStack *sfp)
 	int fd = sfp[1].intValue;
 	int operation = sfp[2].intValue;
 	int ret = flock(fd, operation);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "flock"),
@@ -240,7 +241,7 @@ static KMETHOD System_flock(KonohaContext *kctx, KonohaStack *sfp)
 			   LogText("errstr", strerror(errno))
 			);
 	}
-	RETURNb_(ret == 0);
+	KReturnUnboxValue(ret == 0);
 }
 
 //## @Native boolean System.sync(int fd);
@@ -248,14 +249,14 @@ static KMETHOD System_sync(KonohaContext *kctx, KonohaStack *sfp)
 {
 	int fd = sfp[1].intValue;
 	int ret =  fsync(fd);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "fsync"),
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNb_(ret == 0);
+	KReturnUnboxValue(ret == 0);
 }
 
 static KMETHOD System_link(KonohaContext *kctx, KonohaStack *sfp)
@@ -265,7 +266,7 @@ static KMETHOD System_link(KonohaContext *kctx, KonohaStack *sfp)
 	const char *oldpath = S_text(s1);
 	const char *newpath = S_text(s2);
 	int ret = link(oldpath, newpath);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "link"),
@@ -274,7 +275,7 @@ static KMETHOD System_link(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_unlink(KonohaContext *kctx, KonohaStack *sfp)
@@ -282,7 +283,7 @@ static KMETHOD System_unlink(KonohaContext *kctx, KonohaStack *sfp)
 	kString *s = sfp[1].asString;
 	const char *pathname = S_text(s);
 	int ret = unlink(pathname);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "unlink"),
@@ -290,7 +291,7 @@ static KMETHOD System_unlink(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_rename(KonohaContext *kctx, KonohaStack *sfp)
@@ -300,7 +301,7 @@ static KMETHOD System_rename(KonohaContext *kctx, KonohaStack *sfp)
 	const char *oldpath = S_text(s1);
 	const char *newpath = S_text(s2);
 	int ret = rename(oldpath, newpath);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "rename"),
@@ -309,7 +310,7 @@ static KMETHOD System_rename(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_rmdir(KonohaContext *kctx, KonohaStack *sfp)
@@ -317,7 +318,7 @@ static KMETHOD System_rmdir(KonohaContext *kctx, KonohaStack *sfp)
 	kString *s = sfp[1].asString;
 	const char *pathname = S_text(s);
 	int ret = rmdir(pathname);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "rmdir"),
@@ -325,7 +326,7 @@ static KMETHOD System_rmdir(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_symlink(KonohaContext *kctx, KonohaStack *sfp)
@@ -335,7 +336,7 @@ static KMETHOD System_symlink(KonohaContext *kctx, KonohaStack *sfp)
 	const char *oldpath = S_text(s1);
 	const char *newpath = S_text(s2);
 	int ret = symlink(oldpath, newpath);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "symlink"),
@@ -344,7 +345,7 @@ static KMETHOD System_symlink(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_readlink(KonohaContext *kctx, KonohaStack *sfp)
@@ -353,7 +354,7 @@ static KMETHOD System_readlink(KonohaContext *kctx, KonohaStack *sfp)
 	const char *pathname = S_text(s1);
 	char pathbuf[PATHMAX];
 	ssize_t ret = readlink(pathname, pathbuf, PATHMAX);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "readlink"),
@@ -365,7 +366,7 @@ static KMETHOD System_readlink(KonohaContext *kctx, KonohaStack *sfp)
 	else {
 		pathbuf[ret] = '\0';
 	}
-	RETURN_(KLIB new_kString(kctx, pathbuf, strlen(pathbuf), 0));
+	KReturn(KLIB new_kString(kctx, OnStack, pathbuf, strlen(pathbuf), 0));
 }
 
 static KMETHOD System_chown(KonohaContext *kctx, KonohaStack *sfp)
@@ -375,7 +376,7 @@ static KMETHOD System_chown(KonohaContext *kctx, KonohaStack *sfp)
 	uid_t owner = sfp[2].intValue;
 	gid_t group = sfp[3].intValue;
 	int ret = chown(pathname, owner, group);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "chown"),
@@ -385,7 +386,7 @@ static KMETHOD System_chown(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_lchown(KonohaContext *kctx, KonohaStack *sfp)
@@ -395,7 +396,7 @@ static KMETHOD System_lchown(KonohaContext *kctx, KonohaStack *sfp)
 	uid_t owner = sfp[2].intValue;
 	gid_t group = sfp[3].intValue;
 	int ret = lchown(pathname, owner, group);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "lchown"),
@@ -405,7 +406,7 @@ static KMETHOD System_lchown(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_fchown(KonohaContext *kctx, KonohaStack *sfp)
@@ -414,7 +415,7 @@ static KMETHOD System_fchown(KonohaContext *kctx, KonohaStack *sfp)
 	uid_t owner = sfp[2].intValue;
 	gid_t group = sfp[3].intValue;
 	int ret = fchown(fd, owner, group);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "fchown"),
@@ -423,7 +424,7 @@ static KMETHOD System_fchown(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_access(KonohaContext *kctx, KonohaStack *sfp)
@@ -432,7 +433,7 @@ static KMETHOD System_access(KonohaContext *kctx, KonohaStack *sfp)
 	const char *pathname = S_text(s);
 	int mode = sfp[2].intValue;
 	int ret = access(pathname, mode);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "access"),
@@ -441,21 +442,21 @@ static KMETHOD System_access(KonohaContext *kctx, KonohaStack *sfp)
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 static KMETHOD System_fsync(KonohaContext *kctx, KonohaStack *sfp)
 {
 	int fd = sfp[1].intValue;
 	int ret = fsync(fd);
-	if (ret == -1) {
+	if(ret == -1) {
 		// TODO: throw
 		OLDTRACE_SWITCH_TO_KTrace(_SystemFault,
 			   LogText("@", "fsync"),
 			   KeyValue_p("errstr", strerror(errno))
 			);
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## Stat System.stat(String path)
@@ -464,15 +465,15 @@ static KMETHOD System_stat(KonohaContext *kctx, KonohaStack *sfp)
 	const char *path = S_text(sfp[1].asString);
 	struct stat buf;
 	int ret = stat(path, &buf);
-	struct _kStat *stat = NULL;
+	struct kStatVar *stat = NULL;
 	if(ret != -1) {
-		stat = (struct _kStat *)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].o), (uintptr_t)&buf);
+		stat = (struct kStatVar *)KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), (uintptr_t)&buf);
 	}
 	else {
 		// TODO: throw
-		RETURN_(KLIB Knull(kctx, O_ct(sfp[K_RTNIDX].o)));
+		KReturn(KLIB Knull(kctx, KGetReturnType(sfp)));
 	}
-	RETURN_(stat);
+	KReturn(stat);
 }
 
 //## Stat System.lstat(String path)
@@ -481,14 +482,14 @@ static KMETHOD System_lstat(KonohaContext *kctx, KonohaStack *sfp)
 	const char *path = S_text(sfp[1].asString);
 	struct stat buf;
 	int ret = lstat(path, &buf);
-	struct _kStat *stat = NULL;
+	struct kStatVar *stat = NULL;
 	if(ret != -1) {
-		stat = (struct _kStat *)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].o), (uintptr_t)&buf);
+		stat = (struct kStatVar *)KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), (uintptr_t)&buf);
 	}
 	else {
 		// TODO: throw
 	}
-	RETURN_(stat);
+	KReturn(stat);
 }
 
 //## Stat System.fstat(int fd)
@@ -497,84 +498,84 @@ static KMETHOD System_fstat(KonohaContext *kctx, KonohaStack *sfp)
 	int fd = sfp[1].intValue;
 	struct stat buf;
 	int ret = fstat(fd, &buf);
-	struct _kStat *stat = NULL;
+	struct kStatVar *stat = NULL;
 	if(ret != -1) {
-		stat = (struct _kStat *)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].o), (uintptr_t)&buf);
+		stat = (struct kStatVar *)KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), (uintptr_t)&buf);
 	}
 	else {
 		// TODO: throw
 	}
-	RETURN_(stat);
+	KReturn(stat);
 }
 
 //## int Stat.getst_dev()
 static KMETHOD Stat_getst_dev(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_dev);
+	KReturnUnboxValue(stat->stat->st_dev);
 }
 
 //## int Stat.getst_ino()
 static KMETHOD Stat_getst_ino(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_ino);
+	KReturnUnboxValue(stat->stat->st_ino);
 }
 
 //## int Stat.getst_mode()
 static KMETHOD Stat_getst_mode(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_mode);
+	KReturnUnboxValue(stat->stat->st_mode);
 }
 
 //## int Stat.getst_nlink()
 static KMETHOD Stat_getst_nlink(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_nlink);
+	KReturnUnboxValue(stat->stat->st_nlink);
 }
 
 //## int Stat.getst_uid()
 static KMETHOD Stat_getst_uid(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_uid);
+	KReturnUnboxValue(stat->stat->st_uid);
 }
 
 //## int Stat.getst_gid()
 static KMETHOD Stat_getst_gid(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_gid);
+	KReturnUnboxValue(stat->stat->st_gid);
 }
 
 //## int Stat.getst_size()
 static KMETHOD Stat_getst_size(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_size);
+	KReturnUnboxValue(stat->stat->st_size);
 }
 
 //## int Stat.getst_atime()
 static KMETHOD Stat_getst_atime(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_atime);
+	KReturnUnboxValue(stat->stat->st_atime);
 }
 
 //## int Stat.getst_mtime()
 static KMETHOD Stat_getst_mtime(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_mtime);
+	KReturnUnboxValue(stat->stat->st_mtime);
 }
 
 //## int Stat.getst_ctime()
 static KMETHOD Stat_getst_ctime(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_ctime);
+	KReturnUnboxValue(stat->stat->st_ctime);
 }
 
 #ifdef HAVE_STRUCT_STAT_ST_RDEV
@@ -582,7 +583,7 @@ static KMETHOD Stat_getst_ctime(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_rdev(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_rdev);
+	KReturnUnboxValue(stat->stat->st_rdev);
 }
 #endif /* HAVE_STRUCT_STAT_ST_RDEV */
 
@@ -591,7 +592,7 @@ static KMETHOD Stat_getst_rdev(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_blocks(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_blocks);
+	KReturnUnboxValue(stat->stat->st_blocks);
 }
 #endif /* HAVE_STRUCT_STAT_ST_BLOCKS */
 
@@ -600,7 +601,7 @@ static KMETHOD Stat_getst_blocks(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_blksize(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_blksize);
+	KReturnUnboxValue(stat->stat->st_blksize);
 }
 #endif /* HAVE_STRUCT_STAT_ST_BLKSIZE */
 
@@ -609,7 +610,7 @@ static KMETHOD Stat_getst_blksize(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_flags(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_flags);
+	KReturnUnboxValue(stat->stat->st_flags);
 }
 #endif /* HAVE_STRUCT_STAT_ST_FLAGS */
 
@@ -618,7 +619,7 @@ static KMETHOD Stat_getst_flags(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_gen(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_gen);
+	KReturnUnboxValue(stat->stat->st_gen);
 }
 #endif /* HAVE_STRUCT_STAT_ST_GEN */
 
@@ -627,7 +628,7 @@ static KMETHOD Stat_getst_gen(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Stat_getst_birthtime(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kStat *stat = (kStat *)sfp[0].asObject;
-	RETURNi_(stat->stat->st_birthtime);
+	KReturnUnboxValue(stat->stat->st_birthtime);
 }
 #endif /* HAVE_STRUCT_STAT_ST_BIRTHTIME */
 
@@ -636,26 +637,26 @@ static KMETHOD System_opendir(KonohaContext *kctx, KonohaStack *sfp)
 {
 	const char *name = S_text(sfp[1].asString);
 	DIR *d = opendir(name);
-	struct _kDIR *dir;
+	struct kDirVar *dir;
 	if(d != NULL) {
-		dir = (struct _kDIR *)KLIB new_kObject(kctx, O_ct(sfp[K_RTNIDX].o), (uintptr_t)d);
+		dir = (struct kDirVar *)KLIB new_kObject(kctx, OnStack, KGetReturnType(sfp), (uintptr_t)d);
 	}
 	else {
 		// TODO: throw
 	}
-	RETURN_(dir);
+	KReturn(dir);
 }
 
 //## int DIR.close()
 static KMETHOD DIR_close(KonohaContext *kctx, KonohaStack *sfp)
 {
-	struct _kDIR *dir = (struct _kDIR *)sfp[0].asObject;
+	struct kDirVar *dir = (struct kDirVar *)sfp[0].asObject;
 	int ret = closedir(dir->dirp);
 	if(ret == -1) {
 		// TODO: throw
 	}
 	dir->dirp = NULL;
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int DIR.getfd()
@@ -666,29 +667,24 @@ static KMETHOD DIR_getfd(KonohaContext *kctx, KonohaStack *sfp)
 	if(fd == -1) {
 		// TODO: throw
 	}
-	RETURNi_(fd);
+	KReturnUnboxValue(fd);
 }
 
 //## Array[Dirent] DIR.read()
 static KMETHOD DIR_read(KonohaContext *kctx, KonohaStack *sfp)
 {
+	INIT_GCSTACK();
 	kDIR *dir = (kDIR *)sfp[0].asObject;
 	DIR *dirp = dir->dirp;
-	struct dirent entry;
-	struct dirent *result;
+	struct dirent entry, *result;
+	KonohaClass *CT_Dirent = CT_(O_p0(KGetReturnObject(sfp)));
+	kArray *resultArray = (kArray*)KLIB new_kObject(kctx, _GcStack, KGetReturnType(sfp), 0);
 	int ret;
-	ktype_t TY_Dirent = O_p0(sfp[K_RTNIDX].o);
-	KonohaClass *CT_Dirent = CT_(TY_Dirent);
-	kArray *a = (kArray*)KLIB new_kObject(kctx, CT_p0(kctx, CT_Array, TY_Dirent), 0);
-
 	while((ret = readdir_r(dirp, &entry, &result)) == 0) {
 		if(result == NULL) break;
-		KLIB kArray_add(kctx, a, KLIB new_kObject(kctx, CT_Dirent, (uintptr_t)result));
+		KLIB new_kObject(kctx, resultArray, CT_Dirent, (uintptr_t)result);
 	}
-	if(ret != 0) {
-		// TODO: throw
-	}
-	RETURN_(a);
+	KReturnWith(resultArray, RESET_GCSTACK());
 }
 
 //## void DIR.rewind()
@@ -697,7 +693,7 @@ static KMETHOD DIR_rewind(KonohaContext *kctx, KonohaStack *sfp)
 	kDIR *dir = (kDIR *)sfp[0].asObject;
 	DIR *dirp = dir->dirp;
 	rewinddir(dirp);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## void DIR.seek(int loc)
@@ -707,7 +703,7 @@ static KMETHOD DIR_seek(KonohaContext *kctx, KonohaStack *sfp)
 	DIR *dirp = dir->dirp;
 	long loc = sfp[1].intValue;
 	seekdir(dirp, loc);
-	RETURNvoid_();
+	KReturnVoid();
 }
 
 //## int DIR.tell()
@@ -719,7 +715,7 @@ static KMETHOD DIR_tell(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int Dirent.getd_ino()
@@ -728,7 +724,7 @@ static KMETHOD Dirent_getd_ino(KonohaContext *kctx, KonohaStack *sfp)
 	kDirent *dirent = (kDirent *)sfp[0].asObject;
 	struct dirent *entry = dirent->entry;
 	ino_t d_ino = entry->d_ino;
-	RETURNi_(d_ino);
+	KReturnUnboxValue(d_ino);
 }
 
 #ifdef _DIRENT_HAVE_D_OFF
@@ -738,7 +734,7 @@ static KMETHOD Dirent_getd_off(KonohaContext *kctx, KonohaStack *sfp)
 	kDirent *dirent = (kDirent *)sfp[0].asObject;
 	struct dirent *entry = dirent->entry;
 	off_t d_off = entry->d_off;
-	RETURNi_(d_off);
+	KReturnUnboxValue(d_off);
 }
 #endif /* _DIRENT_HAVE_D_OFF */
 
@@ -748,7 +744,7 @@ static KMETHOD Dirent_getd_reclen(KonohaContext *kctx, KonohaStack *sfp)
 	kDirent *dirent = (kDirent *)sfp[0].asObject;
 	struct dirent *entry = dirent->entry;
 	unsigned short d_reclen = entry->d_reclen;
-	RETURNi_(d_reclen);
+	KReturnUnboxValue(d_reclen);
 }
 
 //## int Dirent.getd_type()
@@ -757,7 +753,7 @@ static KMETHOD Dirent_getd_type(KonohaContext *kctx, KonohaStack *sfp)
 	kDirent *dirent = (kDirent *)sfp[0].asObject;
 	struct dirent *entry = dirent->entry;
 	unsigned char d_type = entry->d_type;
-	RETURNi_(d_type);
+	KReturnUnboxValue(d_type);
 }
 
 //## String Dirent.getd_name()
@@ -766,14 +762,14 @@ static KMETHOD Dirent_getd_name(KonohaContext *kctx, KonohaStack *sfp)
 	kDirent *dirent = (kDirent *)sfp[0].asObject;
 	struct dirent *entry = dirent->entry;
 	char *d_name = entry->d_name;
-	RETURN_(KLIB new_kString(kctx, d_name, strlen(d_name), 0));
+	KReturn(KLIB new_kString(kctx, OnStack, d_name, strlen(d_name), 0));
 }
 
 //## int System.getdtablesize()
 static KMETHOD System_getdtablesize(KonohaContext *kctx, KonohaStack *sfp)
 {
 	int ret = getdtablesize();
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.open(String pathname, int flags)
@@ -786,7 +782,7 @@ static KMETHOD System_open(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.open(String pathname, int flags, int mode)
@@ -800,7 +796,7 @@ static KMETHOD System_open_mode(KonohaContext *kctx, KonohaStack *sfp)
 	if(ret == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ret);
+	KReturnUnboxValue(ret);
 }
 
 //## int System.fchdir(int fd)
@@ -810,7 +806,7 @@ static KMETHOD System_fchdir(KonohaContext *kctx, KonohaStack *sfp)
 	if(ch == -1) {
 		// TODO: throw
 	}
-	RETURNi_(ch);
+	KReturnUnboxValue(ch);
 }
 
 // --------------------------------------------------------------------------
@@ -831,7 +827,7 @@ static KMETHOD System_fchdir(KonohaContext *kctx, KonohaStack *sfp)
 
 #define _KVi(T) #T, TY_int, T
 
-static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, kfileline_t pline)
+static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
 {
 	KDEFINE_CLASS defStat = {
 		STRUCTNAME(Stat),
@@ -840,7 +836,7 @@ static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, con
 		.free  = kStat_free,
 		.p     = kStat_p
 	};
-	KonohaClass *cStat = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defStat, pline);
+	KonohaClass *cStat = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defStat, trace);
 
 	KDEFINE_CLASS defDIR = {
 		STRUCTNAME(DIR),
@@ -849,7 +845,7 @@ static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, con
 		.free  = kDIR_free,
 		.p     = kDIR_p
 	};
-	KonohaClass *cDIR = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDIR, pline);
+	KonohaClass *cDIR = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDIR, trace);
 
 	KDEFINE_CLASS defDirent = {
 		STRUCTNAME(Dirent),
@@ -858,7 +854,7 @@ static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, con
 		.free  = kDirent_free,
 		.p     = kDirent_p
 	};
-	KonohaClass *cDirent = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDirent, pline);
+	KonohaClass *cDirent = KLIB kNameSpace_defineClass(kctx, ns, NULL, &defDirent, trace);
 	KonohaClass *CT_DirentArray0 = CT_p0(kctx, CT_Array, cDirent->typeId);
 	ktype_t TY_DirentArray0 = CT_DirentArray0->typeId;
 
@@ -964,17 +960,17 @@ static kbool_t fd_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, con
 	return true;
 }
 
-static kbool_t fd_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, kfileline_t pline)
+static kbool_t fd_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t fd_initNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t fd_initNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }
 
-static kbool_t fd_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNameSpace, kNameSpace *ns, kfileline_t pline)
+static kbool_t fd_setupNameSpace(KonohaContext *kctx, kNameSpace *packageNS, kNameSpace *ns, KTraceInfo *trace)
 {
 	return true;
 }

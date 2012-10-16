@@ -62,7 +62,7 @@ extern "C" {
 
 // -------------------------------------------------------------------------
 
-static const char *getSystemCharset(void)
+static const char *isSystemCharsetUTF8(void)
 {
 	static char codepage[64];
 	snprintf(codepage, sizeof(codepage), "CP%d", (int)GetACP());
@@ -276,7 +276,7 @@ static int isEmptyChunk(const char *t, size_t len)
 static int loadScript(const char *filePath, long uline, void *thunk, int (*evalFunc)(const char*, long, int *, void *))
 {
 	int isSuccessfullyLoading = false;
-	if (isDir(filePath)) {
+	if(isDir(filePath)) {
 		return isSuccessfullyLoading;
 	}
 	FILE *fp = fopen(filePath, "r");
@@ -509,7 +509,7 @@ static PlatformApi* KonohaUtils_getDefaultPlatformApi(void)
 	plat.setjmp_i        = ksetjmp;
 	plat.longjmp_i       = klongjmp;
 	loadIconv(&plat);
-	plat.getSystemCharset = getSystemCharset;
+	plat.isSystemCharsetUTF8 = isSystemCharsetUTF8;
 	plat.printf_i        = printf;
 	plat.vprintf_i       = vprintf;
 	plat.snprintf_i      = snprintf;  // avoid to use Xsnprintf

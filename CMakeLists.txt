@@ -76,7 +76,7 @@ set(PACKAGES
 	konoha.iterator
 	konoha.math
 	konoha.map
-	konoha.mpi
+#	konoha.mpi
 	konoha.namespace
 	konoha.new
 	konoha.null
@@ -148,8 +148,8 @@ if(MSVC OR MINGW)
 	set(K_OSDLLEXT ".dll")
 endif()
 
-find_library(HAVE_LIBDL NAMES dl)
-find_library(HAVE_LIBM  NAMES m)
+find_library(HAVE_LIBDL    NAMES dl)
+find_library(HAVE_LIBICONV NAMES iconv)
 
 check_type_size("void *" SIZEOF_VOIDP)
 check_type_size(long     SIZEOF_LONG)
@@ -205,6 +205,10 @@ set(ExtraLibs)
 if(HAVE_LIBDL)
 	set(ExtraLibs ${ExtraLibs} ${HAVE_LIBDL})
 endif(HAVE_LIBDL)
+
+if(HAVE_LIBICONV)
+	set(ExtraLibs ${ExtraLibs} ${HAVE_LIBICONV})
+endif(HAVE_LIBICONV)
 
 macro(POP _STR _DELIM _RESULT)
 	string(REPLACE ${_DELIM} ";" _tmp ${_STR})
@@ -333,6 +337,18 @@ macro(create_package_project _PKGNAME)
 		add_custom_target(copy_${PACKAGE_SCRIPT_CODE} ALL DEPENDS
 			${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_SCRIPT_CODE})
 	endif(PACKAGE_SCRIPT_CODE)
+	# for copy test files
+	if(PACKAGE_TEST_FILE)
+		foreach(testfile ${PACKAGE_TEST_FILE})
+			add_custom_command(OUTPUT
+				${CMAKE_CURRENT_BINARY_DIR}/${testfile}
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				${CMAKE_CURRENT_SOURCE_DIR}/test/${testfile}
+				${CMAKE_CURRENT_BINARY_DIR}/${testfile})
+		endforeach(testfile ${PACKAGE_TEST_FILE})
+		add_custom_target(copy_${_PKGNAME}_testfile ALL DEPENDS
+			${PACKAGE_TEST_FILE})
+	endif(PACKAGE_TEST_FILE)
 endmacro(create_package_project)
 
 macro(add_konoha_package PKGNAME)
