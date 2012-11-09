@@ -12,7 +12,6 @@ import("konoha.new");
 import("konoha.float");
 import("konoha.math");
 const N=550;
-//const N=5500;
 
 class Spectralnorm {
 	/* return element i,j of infinite matrix A */

@@ -1,67 +1,70 @@
-import("konoha");
 /* The Great Computer Language Shootout
    http://shootout.alioth.debian.org/
-   contributed by Kimio Kuramitsu
+   contributed by Kimio Kuramitsu, imasahiro, Wakamatsu
 */
 
-int c_MINDEPTH = 4;
+import("cstyle");
+import("konoha.new");
+import("konoha.class");
+import("konoha.global");
+import("konoha.const");
+
+const MINDEPTH = 4;
+const N=14;
 
 class TreeNode {
 	TreeNode left, right;
 	int item;
-	boolean isNull;
 	
-	TreeNode(TreeNode left0, TreeNode right0, int item0, boolean isnull0) {
-		left = left0;
-		right = right0;
-		item = item0;
-		isNull = isnull0;
+	TreeNode(TreeNode left, TreeNode right, int item) {
+		this.left = left;
+		this.right = right;
+		this.item = item;
 	}
 	
 	int itemCheck(){
 		// if necessary deallocate here
-		if(isNull) return item;
-		return item + left.itemCheck() - right.itemCheck();
+		if(this.left == null) return this.item;
+		return this.item + this.left.itemCheck() - this.right.itemCheck();
 	}
 }
 
 TreeNode bottomUpTree(int item, int depth){
-	if(depth > 0){
-		return new TreeNode(bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1), item, false);
+	if (depth > 0){
+		return new TreeNode(bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1), item);
 	}
 	else {
-		TreeNode t; // = null;
-		return new TreeNode(t, t, item, true);
+		return new TreeNode(null, null, item);
 	}
 }
 
-void main() {
-	int n = 20;
-	int maxDepth;
-	if(c_MINDEPTH + 2 > n) maxDepth = c_MINDEPTH + 2; else maxDepth = n;
+void run() {
+	int n = N;
+	int maxDepth = n;
+	if(MINDEPTH+2 > n) {maxDepth = MINDEPTH + 2;}
 	int stretchDepth = maxDepth + 1;
 	int check = bottomUpTree(0,stretchDepth).itemCheck();
 	assert(check == -1);
-	System.p("stretch tree of depth " + stretchDepth + " check: " + check);
-	TreeNode longLivedTree = bottomUpTree(0,maxDepth);
-	int depth = c_MINDEPTH;
+	System.p("stretch tree of depth " + stretchDepth + "\t check: " + check);
+	TreeNode longLivedTree = bottomUpTree(0, maxDepth);
+	int depth = MINDEPTH;
 	while (depth <= maxDepth) {
-		int iterations = 1 << (maxDepth - depth + c_MINDEPTH);
+		int iterations = 1 << (maxDepth - depth + MINDEPTH);
 		check = 0;
-		int i = 1;
-		while (i<= iterations){
+		int i=1;
+		while (i <= iterations) {
 			check = check + bottomUpTree(i, depth).itemCheck();
 			check = check + bottomUpTree(-i, depth).itemCheck();
-			i=i+1;
+			i = i + 1;
 		}
-		assert(check == iterations * -2);
-		System.p("" + (iterations*2) + " trees of depth " + depth + " check: " + check);
+		assert(check == (-iterations*2));
+		System.p(""+(iterations*2) + "\t trees of depth " + depth + "\t check: " + check);
 		depth = depth + 2;
 	}
 	check = longLivedTree.itemCheck();
 	assert(check == -1);
-	System.p("long lived tree of depth " + maxDepth + " check: "+ check);
+	System.p("long lived tree of depth " + maxDepth + "\t check: "+ check);
 }
 
-main();
+run();
 

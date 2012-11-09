@@ -5,12 +5,10 @@
  */
 
 import("cstyle");
-// //import("konoha.assign"); Don't use any more
 import("konoha.const");
 import("konoha.array");
 import("konoha.new");
 import("konoha.class");
-import("cstyle"); // konoha.int was obsolete
 
 const N=9;
 int max(int a, int b) {

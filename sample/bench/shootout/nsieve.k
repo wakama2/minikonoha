@@ -5,7 +5,6 @@
  */
 
 import("cstyle");
-import("cstyle"); // konoha.int was obsolete
 import("konoha.new");
 import("konoha.array");
 import("konoha.class");
