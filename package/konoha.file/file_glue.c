@@ -180,7 +180,7 @@ static KMETHOD File_new(KonohaContext *kctx, KonohaStack *sfp)
 	const char *mode = S_text(sfp[2].asString);
 	FILE *fp = fopen(systemPath, mode);
 	if(fp == NULL) {
-		int fault = PLATAPI diagnosisFaultType(kctx, kString_guessUserFault(path)|SystemError, trace);
+		int fault = KLIB DiagnosisFaultType(kctx, kString_guessUserFault(path)|SystemError, trace);
 		KTraceErrorPoint(trace, fault, "fopen",
 			LogText("filename", S_text(path)), LogText("mode", mode), LogErrno);
 		KLIB KonohaRuntime_raise(kctx, EXPT_("IO"), fault, NULL, sfp);
@@ -432,7 +432,7 @@ static KMETHOD File_scriptPath(KonohaContext *kctx, KonohaStack *sfp)
 {
 	char scriptPathBuf[K_PATHMAX];
 	const char *scriptPath = PLATAPI formatTransparentPath(scriptPathBuf, sizeof(scriptPathBuf), FileId_t(sfp[K_RTNIDX].calledFileLine), S_text(sfp[1].asString));
-	kStringVar *resultValue = (kStringVar*)KLIB new_kString(kctx, OnStack, scriptPath, strlen(scriptPath), 0);
+	kStringVar *resultValue = (kStringVar *)KLIB new_kString(kctx, OnStack, scriptPath, strlen(scriptPath), 0);
 	if(kString_is(Literal, sfp[1].asString)) {
 		kString_set(Literal, resultValue, true);
 	}
@@ -464,8 +464,14 @@ static void file_defineMethod(KonohaContext *kctx, kNameSpace *ns, KTraceInfo *t
 		_Public, _F(File_println), TY_void, TY_File, MN_("println"), 1, TY_String, FN_("str")|FN_COERCION,
 		_Public, _F(File_println0), TY_void, TY_File, MN_("println"), 0,
 		_Public, _F(File_flush), TY_void, TY_File, MN_("flush"), 0,
+
 		_Public|_Const|_Im, _F(FILE_isatty), TY_boolean, TY_File, MN_("isatty"), 0,
 		_Public|_Const|_Im, _F(FILE_getfileno), TY_int, TY_File, MN_("getfileno"), 0,
+
+		_Public, _F(File_read),   TY_int, TY_File, MN_("read"), 1, TY_Bytes, FN_("buf"),
+		_Public, _F(File_read3),  TY_int, TY_File, MN_("read"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
+		_Public, _F(File_write),  TY_int, TY_File, MN_("write"), 1, TY_Bytes, FN_("buf"),
+		_Public, _F(File_write3), TY_int, TY_File, MN_("write"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
 		DEND,
 	};
 	KLIB kNameSpace_LoadMethodData(kctx, ns, MethodData, trace);
@@ -511,14 +517,16 @@ static void file_defineConst(KonohaContext *kctx, kNameSpace *ns, KTraceInfo *tr
 		{NULL}, /* sentinel */
 	};
 	KLIB kNameSpace_LoadConstData(kctx, ns, KonohaConst_(IntData), trace);
+
 }
 
-static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t file_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	KRequireKonohaCommonModule(trace);
+	KRequirePackage("konoha.bytes", trace);
 	if(CT_File == NULL) {
 		KDEFINE_CLASS defFile = {
-			.structname = "FILE",
+			.structname = "File",
 			.typeId = TY_newid,
 			.cstruct_size = sizeof(kFile),
 			.cflag = kClass_Final,
@@ -529,23 +537,18 @@ static kbool_t file_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, c
 		};
 		CT_File = KLIB kNameSpace_DefineClass(kctx, ns, NULL, &defFile, trace);
 	}
-	file_defineConst(kctx, ns, trace);
 	file_defineMethod(kctx, ns, trace);
+	file_defineConst(kctx, ns, trace);
 	return true;
 }
 
-static kbool_t file_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t file_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
-	if(CT_Bytes != NULL && KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, ns, TY_Bytes, MN_("read"), 3) == NULL) {
-		KDEFINE_METHOD MethodData[] = {
-			_Public, _F(File_read),   TY_int, TY_File, MN_("read"), 1, TY_Bytes, FN_("buf"),
-			_Public, _F(File_read3),  TY_int, TY_File, MN_("read"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
-			_Public, _F(File_write),  TY_int, TY_File, MN_("write"), 1, TY_Bytes, FN_("buf"),
-			_Public, _F(File_write3), TY_int, TY_File, MN_("write"), 3, TY_Bytes, FN_("buf"), TY_int, FN_("offset"), TY_int, FN_("len"),
-			DEND,
-		};
-		KLIB kNameSpace_LoadMethodData(kctx, ns, MethodData, trace);
-	}
+	KDEFINE_INT_CONST ClassData[] = {   // add Array as available
+		{"FILE", VirtualType_KonohaClass, (uintptr_t)CT_File},
+		{NULL},
+	};
+	KLIB kNameSpace_LoadConstData(kctx, exportNS, KonohaConst_(ClassData), 0);
 	return true;
 }
 
@@ -555,8 +558,8 @@ KDEFINE_PACKAGE* file_init(void)
 {
 	static KDEFINE_PACKAGE d = {
 		KPACKNAME("konoha", "1.0"),
-		.initPackage    = file_initPackage,
-		.setupPackage   = file_setupPackage,
+		.PackupNameSpace    = file_PackupNameSpace,
+		.ExportNameSpace   = file_ExportNameSpace,
 	};
 	return &d;
 }

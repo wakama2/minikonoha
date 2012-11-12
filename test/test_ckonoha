@@ -177,69 +177,71 @@ run_test 16 16 minimum "-MOutputTest" 0010_Literal/Literal_VeryLargeNumber.k
 record_result 0010_Literal $PASS 16
 ## 0011_FuncDecl
 PASS=0
-run_test 1 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox01.k
-run_test 2 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox02.k
-run_test 3 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox03.k
-run_test 4 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox04.k
-run_test 5 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox05.k
-run_test 6 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox06.k
-run_test 7 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox07.k
-run_test 8 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox08.k
-run_test 9 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox09.k
-run_test 10 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox10.k
-run_test 11 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox11.k
-run_test 12 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox12.k
-run_test 13 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox13.k
-run_test 14 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox14.k
-run_test 15 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox15.k
-run_test 16 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox16.k
-run_test 17 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox17.k
-run_test 18 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox18.k
-run_test 19 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox19.k
-run_test 20 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox20.k
-run_test 21 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox21.k
-run_test 22 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox22.k
-run_test 23 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox23.k
-run_test 24 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox24.k
-run_test 25 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox25.k
-run_test 26 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox26.k
-run_test 27 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox27.k
-run_test 28 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox28.k
-run_test 29 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox29.k
-run_test 30 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_UnboxOverload30.k
-run_test 31 62 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Void.k
-run_test 32 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox01.k
-run_test 33 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox02.k
-run_test 34 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox03.k
-run_test 35 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox04.k
-run_test 36 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox05.k
-run_test 37 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox06.k
-run_test 38 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox07.k
-run_test 39 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox08.k
-run_test 40 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox09.k
-run_test 41 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox10.k
-run_test 42 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox11.k
-run_test 43 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox12.k
-run_test 44 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox13.k
-run_test 45 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox14.k
-run_test 46 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox15.k
-run_test 47 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox16.k
-run_test 48 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox17.k
-run_test 49 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox18.k
-run_test 50 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox19.k
-run_test 51 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox20.k
-run_test 52 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox21.k
-run_test 53 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox22.k
-run_test 54 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox23.k
-run_test 55 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox24.k
-run_test 56 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox25.k
-run_test 57 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox26.k
-run_test 58 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox27.k
-run_test 59 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox28.k
-run_test 60 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox29.k
-run_test 61 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_UnboxOverload30.k
-run_test 62 62 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Void.k
-record_result 0011_FuncDecl $PASS 62
+run_test 1 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Empty.k
+run_test 2 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox01.k
+run_test 3 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox02.k
+run_test 4 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox03.k
+run_test 5 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox04.k
+run_test 6 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox05.k
+run_test 7 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox06.k
+run_test 8 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox07.k
+run_test 9 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox08.k
+run_test 10 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox09.k
+run_test 11 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox10.k
+run_test 12 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox11.k
+run_test 13 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox12.k
+run_test 14 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox13.k
+run_test 15 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox14.k
+run_test 16 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox15.k
+run_test 17 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox16.k
+run_test 18 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox17.k
+run_test 19 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox18.k
+run_test 20 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox19.k
+run_test 21 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox20.k
+run_test 22 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox21.k
+run_test 23 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox22.k
+run_test 24 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox23.k
+run_test 25 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox24.k
+run_test 26 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox25.k
+run_test 27 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox26.k
+run_test 28 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox27.k
+run_test 29 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox28.k
+run_test 30 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Unbox29.k
+run_test 31 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_UnboxOverload30.k
+run_test 32 64 minimum "-MOutputTest" 0011_FuncDecl/FuncDecl_Void.k
+run_test 33 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Empty.k
+run_test 34 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox01.k
+run_test 35 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox02.k
+run_test 36 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox03.k
+run_test 37 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox04.k
+run_test 38 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox05.k
+run_test 39 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox06.k
+run_test 40 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox07.k
+run_test 41 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox08.k
+run_test 42 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox09.k
+run_test 43 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox10.k
+run_test 44 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox11.k
+run_test 45 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox12.k
+run_test 46 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox13.k
+run_test 47 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox14.k
+run_test 48 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox15.k
+run_test 49 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox16.k
+run_test 50 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox17.k
+run_test 51 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox18.k
+run_test 52 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox19.k
+run_test 53 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox20.k
+run_test 54 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox21.k
+run_test 55 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox22.k
+run_test 56 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox23.k
+run_test 57 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox24.k
+run_test 58 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox25.k
+run_test 59 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox26.k
+run_test 60 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox27.k
+run_test 61 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox28.k
+run_test 62 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Unbox29.k
+run_test 63 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_UnboxOverload30.k
+run_test 64 64 cstyle "-MOutputTest -Icstyle" 0011_FuncDecl/FuncDecl_Void.k
+record_result 0011_FuncDecl $PASS 64
 ## 0012_FuncReturn
 PASS=0
 run_test 1 62 minimum "-MOutputTest" 0012_FuncReturn/FuncReturn_Unbox01.k
@@ -661,7 +663,10 @@ run_test 1 1 minimum "-MOutputTest" 0096_NoType/NoType_TypeDecl.k
 record_result 0096_NoType $PASS 1
 ## 0100_CStyle
 PASS=0
-record_result 0100_CStyle $PASS 0
+run_test 1 3 minimum "-MOutputTest" 0100_CStyle/CStyle_Double.k
+run_test 2 3 minimum "-MOutputTest" 0100_CStyle/CStyle_File.k
+run_test 3 3 minimum "-MOutputTest" 0100_CStyle/CStyle_Math.k
+record_result 0100_CStyle $PASS 3
 ## 0101_While
 PASS=0
 run_test 1 7 minimum "-MOutputTest" 0101_While/While_Break.k
@@ -672,6 +677,48 @@ run_test 5 7 minimum "-MOutputTest" 0101_While/While_IfContinue.k
 run_test 6 7 minimum "-MOutputTest" 0101_While/While_Nested.k
 run_test 7 7 minimum "-MOutputTest" 0101_While/While_OneLiner.k
 record_result 0101_While $PASS 7
+## 0102_DoWhile
+PASS=0
+run_test 1 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_Break.k
+run_test 2 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_Contine.k
+run_test 3 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_False.k
+run_test 4 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_IfBreak.k
+run_test 5 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_IfContinue.k
+run_test 6 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_Nested.k
+run_test 7 7 minimum "-MOutputTest" 0102_DoWhile/DoWhile_OneLiner.k
+record_result 0102_DoWhile $PASS 7
+## 0103_For
+PASS=0
+run_test 1 10 minimum "-MOutputTest" 0103_For/For_Break.k
+run_test 2 10 minimum "-MOutputTest" 0103_For/For_Contine.k
+run_test 3 10 minimum "-MOutputTest" 0103_For/For_EmptyLoop.k
+run_test 4 10 minimum "-MOutputTest" 0103_For/For_False.k
+run_test 5 10 minimum "-MOutputTest" 0103_For/For_IfBreak.k
+run_test 6 10 minimum "-MOutputTest" 0103_For/For_IfContinue.k
+run_test 7 10 minimum "-MOutputTest" 0103_For/For_Nested.k
+run_test 8 10 minimum "-MOutputTest" 0103_For/For_OneLiner.k
+run_test 9 10 minimum "-MOutputTest" 0103_For/For_TypeDecl.k
+run_test 10 10 minimum "-MOutputTest" 0103_For/For_TypeDeclScope.k
+record_result 0103_For $PASS 10
+## 0104_Switch
+PASS=0
+record_result 0104_Switch $PASS 0
+## 0105_Block
+PASS=0
+record_result 0105_Block $PASS 0
+## 0106_Increment
+PASS=0
+run_test 1 5 minimum "-MOutputTest" 0106_Increment/Increment_ArgInc.k
+run_test 2 5 minimum "-MOutputTest" 0106_Increment/Increment_Dec.k
+run_test 3 5 minimum "-MOutputTest" 0106_Increment/Increment_GlobalDec.k
+run_test 4 5 minimum "-MOutputTest" 0106_Increment/Increment_GlobalInc.k
+run_test 5 5 minimum "-MOutputTest" 0106_Increment/Increment_Inc.k
+record_result 0106_Increment $PASS 5
+## 0109_CSyntaxError
+PASS=0
+run_test 1 2 minimum "-MOutputTest" 0109_CSyntaxError/CSyntaxError_TopLevelBreak.k
+run_test 2 2 minimum "-MOutputTest" 0109_CSyntaxError/CSyntaxError_TopLevelContinue.k
+record_result 0109_CSyntaxError $PASS 2
 ## 0130_Null
 PASS=0
 run_test 1 12 minimum "-MOutputTest" 0130_Null/Null_Int.k
@@ -727,6 +774,15 @@ run_test 10 12 minimum "-MOutputTest" 0132_SelfAssign/SelfAssign_RShift.k
 run_test 11 12 minimum "-MOutputTest" 0132_SelfAssign/SelfAssign_Shift.k
 run_test 12 12 minimum "-MOutputTest" 0132_SelfAssign/SelfAssign_Sub.k
 record_result 0132_SelfAssign $PASS 12
+## 0133_SingleQuoteChar
+PASS=0
+record_result 0133_SingleQuoteChar $PASS 0
+## 0134_Indexer
+PASS=0
+run_test 1 3 minimum "-MOutputTest" 0134_Indexer/Indexer.k
+run_test 2 3 minimum "-MOutputTest" 0134_Indexer/Indexer_Empty.k
+run_test 3 3 minimum "-MOutputTest" 0134_Indexer/Indexer_TooManyParam.k
+record_result 0134_Indexer $PASS 3
 ## 0150_Sugar
 PASS=0
 record_result 0150_Sugar $PASS 0
@@ -789,25 +845,26 @@ run_test 3 3 minimum "-MOutputTest" 0185_This/This_InnerThisField.k
 record_result 0185_This $PASS 3
 ## 0188_ClassStress
 PASS=0
-run_test 1 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00100.k
-run_test 2 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00200.k
-run_test 3 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00500.k
-run_test 4 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass01000.k
-run_test 5 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass02000.k
-run_test 6 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass05000.k
-run_test 7 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass10000.k
-run_test 8 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0010.k
-run_test 9 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0020.k
-run_test 10 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0050.k
-run_test 11 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0100.k
-run_test 12 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0200.k
-run_test 13 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0500.k
-run_test 14 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends1000.k
-run_test 15 15 minimum "-MOutputTest" 0188_ClassStress/ClassStress_VeryManyField.k
-record_result 0188_ClassStress $PASS 15
+run_test 1 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00100.k
+run_test 2 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00200.k
+run_test 3 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass00500.k
+run_test 4 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass01000.k
+run_test 5 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass02000.k
+run_test 6 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass05000.k
+run_test 7 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyClass10000.k
+run_test 8 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0010.k
+run_test 9 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0020.k
+run_test 10 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0050.k
+run_test 11 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0100.k
+run_test 12 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0200.k
+run_test 13 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_ManyExtends0500.k
+run_test 14 14 minimum "-MOutputTest" 0188_ClassStress/ClassStress_VeryManyField.k
+record_result 0188_ClassStress $PASS 14
 ## 0189_ClassError
 PASS=0
-record_result 0189_ClassError $PASS 0
+run_test 1 2 minimum "-MOutputTest" 0189_ClassError/ClassError_DuplicatedField.k
+run_test 2 2 minimum "-MOutputTest" 0189_ClassError/ClassError_ExtendVirtualClass.k
+record_result 0189_ClassError $PASS 2
 ## 0200_Konoha
 PASS=0
 record_result 0200_Konoha $PASS 0

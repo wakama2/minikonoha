@@ -79,13 +79,13 @@ extern "C" {
 #define KW_DOLLAR  KW_PATTERN
 #define KW_ATMARK  MN_Annotation
 #define KW_COLON   (17+KW_DOT)
+#define KW_SEMICOLON (18+KW_DOT)
 
-#define KW_void      (32)
-#define KW_true      (0+KW_void)
-#define KW_false     (1+KW_void)
-#define KW_if        (2+KW_void)
-#define KW_else      (3+KW_void)
-#define KW_return    (4+KW_void)
+#define KW_true      33
+#define KW_false     (1+KW_true)
+#define KW_if        (2+KW_true)
+#define KW_else      (3+KW_true)
+#define KW_return    (4+KW_true)
 
 typedef enum {
 	TokenType_INDENT = 1,
@@ -333,42 +333,42 @@ typedef struct MacroSet {
 	int                       endIdx;
 } MacroSet;
 
-struct TokenSequenceSource {
+struct TokenSeqSource {
 	kToken *openToken;
 	int     stopChar;
 	kToken *foundErrorToken;
 };
 
-struct TokenSequenceTarget {
+struct TokenSeqTarget {
 	int RemovingIndent;
 	int ExpandingBraceGroup;
 	SugarSyntax *syntaxSymbolPattern;
 };
 
-typedef struct TokenSequence {
+typedef struct TokenSeq {
 	kNameSpace *ns;
 	kArray *tokenList;
 	int beginIdx;
 	int endIdx;
 	union {
-		struct TokenSequenceSource SourceConfig;
-		struct TokenSequenceTarget TargetPolicy;
+		struct TokenSeqSource SourceConfig;
+		struct TokenSeqTarget TargetPolicy;
 	};
-} TokenSequence;
+} TokenSeq;
 
-#define TokenSequence_end(kctx, range)   range->endIdx = kArray_size(range->tokenList)
+#define TokenSeq_end(kctx, range)   range->endIdx = kArray_size(range->tokenList)
 
-#define TokenSequence_push(kctx, range) \
+#define TokenSeq_push(kctx, range) \
 	size_t _popCheckIdx = kArray_size(range.tokenList);\
 	range.beginIdx = kArray_size(range.tokenList);\
 	range.endIdx   = 0;\
 
-#define TokenSequence_pop(kctx, range)   do {\
+#define TokenSeq_pop(kctx, range)   do {\
 	KLIB kArray_clear(kctx, range.tokenList, _popCheckIdx);\
 	DBG_ASSERT(_popCheckIdx == kArray_size(range.tokenList));\
 } while(0)
 
-typedef kbool_t (*CheckEndOfStmtFunc2)(KonohaContext *, TokenSequence *range, TokenSequence *sourceRange, int *currentIdxRef, int *indentRef);
+typedef kbool_t (*CheckEndOfStmtFunc2)(KonohaContext *, TokenSeq *range, TokenSeq *sourceRange, int *currentIdxRef, int *indentRef);
 
 #define Token_isVirtualTypeLiteral(TK)     ((TK)->resolvedSyntaxInfo->keyword == KW_TypePattern)
 #define Token_typeLiteral(TK)              (TK)->resolvedTypeId
@@ -500,7 +500,7 @@ struct kGammaVar {
 /* ------------------------------------------------------------------------ */
 
 #define GetSugarContext(kctx)    ((SugarContext *)kctx->modlocal[MOD_sugar])
-#define kmodsugar       ((KModuleSugar*)kctx->modshare[MOD_sugar])
+#define kmodsugar       ((KModuleSugar *)kctx->modshare[MOD_sugar])
 #define CT_Token        kmodsugar->cToken
 #define CT_Expr         kmodsugar->cExpr
 #define CT_Stmt         kmodsugar->cStmt
@@ -543,29 +543,31 @@ typedef struct {
 
 	SugarSyntax*    (*kNameSpace_GetSyntax)(KonohaContext *, kNameSpace *, ksymbol_t, int);
 	void            (*kNameSpace_DefineSyntax)(KonohaContext *, kNameSpace *, KDEFINE_SYNTAX *, KTraceInfo *);
-	kbool_t         (*kArray_addSyntaxRule)(KonohaContext *, kArray *ruleList, TokenSequence *sourceRange);
+	kbool_t         (*kArray_addSyntaxRule)(KonohaContext *, kArray *ruleList, TokenSeq *sourceRange);
 	SugarSyntaxVar* (*kNameSpace_SetTokenFunc)(KonohaContext *, kNameSpace *, ksymbol_t, int ch, kFunc *);
 	SugarSyntaxVar* (*kNameSpace_AddSugarFunc)(KonohaContext *, kNameSpace *, ksymbol_t kw, size_t idx, kFunc *);
 	void            (*kNameSpace_SetMacroData)(KonohaContext *, kNameSpace *, ksymbol_t, int, const char *);
 
-	void        (*TokenSequence_tokenize)(KonohaContext *, TokenSequence *, const char *, kfileline_t);
-	kbool_t     (*TokenSequence_applyMacro)(KonohaContext *, TokenSequence *, kArray *, int, int, size_t, MacroSet *);
-	int         (*TokenSequence_resolved)(KonohaContext *, TokenSequence *, MacroSet *, TokenSequence *, int);
-	kstatus_t   (*TokenSequence_eval)(KonohaContext *, TokenSequence *, KTraceInfo *);
+	void        (*TokenSeq_tokenize)(KonohaContext *, TokenSeq *, const char *, kfileline_t);
+	kbool_t     (*TokenSeq_applyMacro)(KonohaContext *, TokenSeq *, kArray *, int, int, size_t, MacroSet *);
+	int         (*TokenSeq_resolved)(KonohaContext *, TokenSeq *, MacroSet *, TokenSeq *, int);
+	kstatus_t   (*TokenSeq_eval)(KonohaContext *, TokenSeq *, KTraceInfo *);
 
 	int         (*TokenUtils_parseTypePattern)(KonohaContext *, kNameSpace *, kArray *, int , int , KonohaClass **classRef);
 	kTokenVar*  (*kToken_transformToBraceGroup)(KonohaContext *, kTokenVar *, kNameSpace *, MacroSet *);
 
-	void        (*kStmt_addParsedObject)(KonohaContext *, kStmt *, ksymbol_t, kObject *o);
+	void        (*kStmt_AddParsedObject)(KonohaContext *, kStmt *, ksymbol_t, kObject *o);
+	int         (*kNameSpace_FindEndOfStatement)(KonohaContext *, kNameSpace *, kArray *, int, int);
+
 	uintptr_t   (*kStmt_parseFlag)(KonohaContext *kctx, kStmt *stmt, KonohaFlagSymbolData *flagData, uintptr_t flag);
 	kToken*     (*kStmt_getToken)(KonohaContext *, kStmt *, ksymbol_t kw, kToken *def);
 	kExpr*      (*kStmt_getExpr)(KonohaContext *, kStmt *, ksymbol_t kw, kExpr *def);
 	const char* (*kStmt_getText)(KonohaContext *, kStmt *, ksymbol_t kw, const char *def);
 	kBlock*     (*kStmt_getBlock)(KonohaContext *, kStmt *, kNameSpace *, ksymbol_t kw, kBlock *def);
 
-	kBlock*      (*new_kBlock)(KonohaContext *, kStmt *, MacroSet *, TokenSequence *);
-	kStmt*       (*new_kStmt)(KonohaContext *kctx, kArray *gcstack, kNameSpace *ns, ksymbol_t keyword, ...);
-	void         (*kBlock_insertAfter)(KonohaContext *, kBlock *, kStmtNULL *target, kStmt *);
+	kBlock*      (*new_kBlock)(KonohaContext *, kStmt *, MacroSet *, TokenSeq *);
+	kStmt*       (*new_kStmt)(KonohaContext *kctx, kArray *gcstack, SugarSyntax *syn, ...);
+	void         (*kBlock_InsertAfter)(KonohaContext *, kBlock *, kStmtNULL *target, kStmt *);
 
 	kExpr*       (*new_UntypedTermExpr)(KonohaContext *, kToken *tk);
 	kExpr*       (*new_UntypedCallStyleExpr)(KonohaContext *, SugarSyntax *syn, int n, ...);
@@ -579,13 +581,13 @@ typedef struct {
 	kExpr*       (*kExpr_setVariable)(KonohaContext *, kExpr *, kGamma *, kexpr_t build, ktype_t ty, intptr_t index);
 
 	kExpr *     (*new_TypedCallExpr)(KonohaContext *, kStmt *, kGamma *, ktype_t ty, kMethod *mtd, int n, ...);
-	kbool_t     (*kBlock_tyCheckAll)(KonohaContext *, kBlock *, kGamma *);
-	kbool_t     (*kStmt_tyCheckByName)(KonohaContext *, kStmt*, ksymbol_t, kGamma *, ktype_t, int);
+	kbool_t     (*kBlock_TypeCheckAll)(KonohaContext *, kBlock *, kGamma *);
+	kbool_t     (*kStmt_TypeCheckByName)(KonohaContext *, kStmt*, ksymbol_t, kGamma *, ktype_t, int);
 	kExpr*      (*kStmt_TypeCheckExprAt)(KonohaContext *, kStmt *, kExpr *, size_t, kGamma *, ktype_t, int);
 	kExpr *     (*kStmtExpr_TypeCheckCallParam)(KonohaContext *, kStmt *, kExpr *, kMethod *, kGamma *, ktype_t);
 	int         (*kGamma_declareLocalVariable)(KonohaContext *, kGamma *, ktype_t, ksymbol_t);
 	kbool_t     (*kStmt_declType)(KonohaContext *, kStmt *, kGamma *, ktype_t, kExpr *, kObject *, TypeDeclFunc, kStmt **);
-	kExpr*      (*kStmt_tyCheckVariableNULL)(KonohaContext *, kStmt *, kExpr *, kGamma *, ktype_t);
+	kExpr*      (*kStmt_TypeCheckVariableNULL)(KonohaContext *, kStmt *, kExpr *, kGamma *, ktype_t);
 
 
 	void       (*kToken_printMessage)(KonohaContext *, kTokenVar *, kinfotag_t, const char *fmt, ...);
@@ -658,13 +660,13 @@ static kExpr* kExpr_setVariable(KonohaContext *kctx, kExpr *expr, kGamma *gma, k
 #ifdef USE_SMALLBUILD
 #define KdumpToken(ctx, tk)
 #define KdumpTokenArray(CTX, TLS, S, E)
-#define KdumpTokenSequence(CTX, MSG, R)
+#define KdumpTokenSeq(CTX, MSG, R)
 #define KdumpStmt(CTX, STMT)
 #define KdumpExpr(CTX, EXPR)
 #else
 #define KdumpToken(ctx, tk)              ((const KModuleSugar *)kmodsugar)->dumpToken(ctx, tk, 0)
 #define KdumpTokenArray(CTX, TLS, S, E)  DBG_P("@"); ((const KModuleSugar *)kmodsugar)->dumpTokenArray(CTX, 1, TLS, S, E)
-#define KdumpTokenSequence(CTX, MSG, R)     DBG_P(MSG); ((const KModuleSugar *)kmodsugar)->dumpTokenArray(CTX, 1, R->tokenList, R->beginIdx, R->endIdx)
+#define KdumpTokenSeq(CTX, MSG, R)     DBG_P(MSG); ((const KModuleSugar *)kmodsugar)->dumpTokenArray(CTX, 1, R->tokenList, R->beginIdx, R->endIdx)
 #define KdumpStmt(CTX, STMT)             ((const KModuleSugar *)kmodsugar)->dumpStmt(CTX, STMT)
 #define KdumpExpr(CTX, EXPR)             ((const KModuleSugar *)kmodsugar)->dumpExpr(CTX, 0, 0, EXPR)
 #endif
@@ -677,8 +679,8 @@ static inline void kToken_setTypeId(KonohaContext *kctx, kToken *tk, kNameSpace 
 	((kTokenVar *)tk)->resolvedSyntaxInfo = kmodsugar->kNameSpace_GetSyntax(kctx, ns, KW_TypePattern, 0);
 }
 
-#define Stmt_nameSpace(STMT)   kStmt_nameSpace(STMT)
-static inline kNameSpace *kStmt_nameSpace(/*KonohaContext *kctx, */kStmt *stmt)
+#define Stmt_ns(STMT)   kStmt_ns(STMT)
+static inline kNameSpace *kStmt_ns(/*KonohaContext *kctx, */kStmt *stmt)
 {
 	return stmt->parentBlockNULL->BlockNameSpace;
 }

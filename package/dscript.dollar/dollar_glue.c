@@ -45,7 +45,7 @@ static KMETHOD Expression_dollar(KonohaContext *kctx, KonohaStack *sfp)
 
 	}
 //	KonohaClass *foundClass = NULL;
-//	int nextIdx = SUGAR TokenUtils_parseTypePattern(kctx, stmt, Stmt_nameSpace(stmt), tokenList, beginIdx + 1, endIdx, &foundClass);
+//	int nextIdx = SUGAR TokenUtils_parseTypePattern(kctx, stmt, Stmt_ns(stmt), tokenList, beginIdx + 1, endIdx, &foundClass);
 //	if(nextIdx != -1 && nextIdx < kArray_size(tokenList)) {
 //		kToken *nextTokenAfterClassName = tokenList->TokenItems[nextIdx];
 ////		if(ct->typeId == TY_void) {
@@ -54,13 +54,13 @@ static KMETHOD Expression_dollar(KonohaContext *kctx, KonohaStack *sfp)
 ////			SUGAR kStmt_printMessage2(kctx, stmt, NULL, ErrTag, "invalid application of 'dollar' to incomplete class %s", CT_t(ct));
 ////		}
 //		if(nextTokenAfterClassName->resolvedSyntaxInfo->keyword == KW_ParenthesisGroup) {  // dollar C (...)
-//			SugarSyntax *syn = SYN_(Stmt_nameSpace(stmt), KW_ExprMethodCall);
+//			SugarSyntax *syn = SYN_(Stmt_ns(stmt), KW_ExprMethodCall);
 //			kExpr *expr = SUGAR dollar_UntypedCallStyleExpr(kctx, syn, 2, dollarToken, NewExpr(kctx, syn, tokenList->TokenVarItems[beginIdx+1], foundClass->typeId));
 //			dollarToken->resolvedSymbol = MN_dollar;
 //			KReturn(expr);
 //		}
 //		if(nextTokenAfterClassName->resolvedSyntaxInfo->keyword == KW_BracketGroup) {     // dollar int [100]
-//			SugarSyntax *syn = SYN_(Stmt_nameSpace(stmt), SYM_("dollar"));
+//			SugarSyntax *syn = SYN_(Stmt_ns(stmt), SYM_("dollar"));
 //			KonohaClass *arrayClass = CT_p0(kctx, CT_Array, foundClass->typeId);
 //			dollarToken->resolvedSymbol = MN_("dollarArray");
 //			kExpr *expr = SUGAR dollar_UntypedCallStyleExpr(kctx, syn, 2, dollarToken, NewExpr(kctx, syn, tokenList->TokenVarItems[beginIdx+1], arrayClass->typeId));
@@ -82,13 +82,13 @@ static kbool_t dollar_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceIn
 	return true;
 }
 
-static kbool_t dollar_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t dollar_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	dollar_defineSyntax(kctx, ns, trace);
 	return true;
 }
 
-static kbool_t dollar_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t dollar_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -97,8 +97,8 @@ KDEFINE_PACKAGE* dollar_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "dscript", "1.0");
-	d.initPackage    = dollar_initPackage;
-	d.setupPackage   = dollar_setupPackage;
+	d.PackupNameSpace    = dollar_PackupNameSpace;
+	d.ExportNameSpace   = dollar_ExportNameSpace;
 	return &d;
 }
 

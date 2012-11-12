@@ -192,7 +192,7 @@ static KMETHOD TypeCheck_Getter(KonohaContext *kctx, KonohaStack *sfp)
 	kToken *tkN = expr->cons->TokenItems[0];
 	ksymbol_t fn = tkN->resolvedSymbol;
 	kExpr *self = SUGAR kStmt_TypeCheckExprAt(kctx, stmt, expr, 1, gma, TY_var, 0);
-	kNameSpace *ns = Stmt_nameSpace(stmt);
+	kNameSpace *ns = Stmt_ns(stmt);
 	if(self != K_NULLEXPR) {
 		kMethod *mtd = KLIB kNameSpace_GetGetterMethodNULL(kctx, ns, self->ty, fn, TY_var);
 		if(mtd != NULL) {
@@ -215,7 +215,7 @@ static kbool_t field_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceInf
 
 // --------------------------------------------------------------------------
 
-static kbool_t field_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t field_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	KSetKLibFunc(ns->packageId, kMethod_indexOfField, KLIB2_Method_indexOfField, trace);
 	KSetKLibFunc(ns->packageId, KonohaClass_addField, KonohaClass_addField, trace);
@@ -223,7 +223,7 @@ static kbool_t field_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, 
 	return true;
 }
 
-static kbool_t field_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t field_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -234,8 +234,8 @@ KDEFINE_PACKAGE* field_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "field", "1.0");
-	d.initPackage    = field_initPackage;
-	d.setupPackage   = field_setupPackage;
+	d.PackupNameSpace    = field_PackupNameSpace;
+	d.ExportNameSpace   = field_ExportNameSpace;
 	return &d;
 }
 

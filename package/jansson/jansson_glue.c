@@ -205,14 +205,14 @@ static KMETHOD Json_getString(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setJson(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	json_t* val = ((struct kJanssonVar *)sfp[2].asObject)->obj;
-	CHECK_JSON(val, KReturnDefaultObjectValue());
+	CHECK_JSON(val, KReturnDefaultValue());
 	int ret = json_object_set(obj, key, val);
 	if(ret < 0) {
 		DBG_P("[WARNING] Json set cannnot set target object");
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	KReturnVoid();
 }
@@ -221,7 +221,7 @@ static KMETHOD Json_setJson(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setArray(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	kArrayVar* a = (kArrayVar *)sfp[2].asArray;
 	json_t *ja = (json_t *)a->ObjectItems;
@@ -233,7 +233,7 @@ static KMETHOD Json_setArray(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setBool(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	kbool_t bval = sfp[2].boolValue;
 	json_t* val;
@@ -246,7 +246,7 @@ static KMETHOD Json_setBool(KonohaContext *kctx, KonohaStack *sfp)
 	int ret = json_object_set(obj, key, val);
 	if(ret < 0) {
 		DBG_P("[WARNING] Json set cannnot set target object");
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	KReturnVoid();
 }
@@ -255,19 +255,19 @@ static KMETHOD Json_setBool(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setFloat(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	float fval = sfp[2].floatValue;
 	json_t* val = json_real(fval);
 	if(!json_is_real(val)) {
 		DBG_P("[ERROR]: Value is not Json object.");
 		//KLIB KonohaRuntime_raise(kctx, 1, sfp, pline, msg);
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	int ret = json_object_set(obj, key, val);
 	if(ret < 0) {
 		DBG_P("[WARNING] Json set cannnot set target object");
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	KReturnVoid();
 }
@@ -276,19 +276,19 @@ static KMETHOD Json_setFloat(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setInt(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	kint_t ival = sfp[2].intValue;
 	json_t* val = json_integer((json_int_t)ival);
 	if(!json_is_integer(val)) {
 		DBG_P("[ERROR]: Value is not Json object.");
 		//KLIB KonohaRuntime_raise(kctx, 1, sfp, pline, msg);
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	int ret = json_object_set(obj, key, val);
 	if(ret < 0) {
 		DBG_P("[WARNING] Json set cannnot set target object");
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	KReturnVoid();
 }
@@ -297,19 +297,19 @@ static KMETHOD Json_setInt(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_setString(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	const char *key = S_text(sfp[1].asString);
 	const char *stringValue = S_text(sfp[2].asString);
 	json_t* val = json_string(stringValue);
 	if(!json_is_string(val)) {
 		DBG_P("[ERROR]: Value is not Json object.");
 		//KLIB KonohaRuntime_raise(kctx, 1, sfp, pline, msg);
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	int ret = json_object_set(obj, key, val);
 	if(ret < 0) {
 		DBG_P("[WARNING] Json set cannnot set target object");
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	KReturnVoid();
 }
@@ -334,7 +334,7 @@ static KMETHOD Json_getKeys(KonohaContext *kctx, KonohaStack *sfp)
 static KMETHOD Json_dump(KonohaContext *kctx, KonohaStack *sfp)
 {
 	json_t* obj = ((struct kJanssonVar *)sfp[0].asObject)->obj;
-	CHECK_JSON(obj, KReturnDefaultObjectValue());
+	CHECK_JSON(obj, KReturnDefaultValue());
 	char* data = json_dumps(obj, JSON_ENSURE_ASCII);
 	if(data == NULL) {
 		KReturn(KNULL(String));
@@ -363,7 +363,7 @@ static KMETHOD JsonArray_add(KonohaContext *kctx, KonohaStack *sfp)
 	if(!json_is_array(ja)) {
 		DBG_P("[ERROR]: Object is not Json Array.");
 		//KLIB KonohaRuntime_raise(kctx, 1, sfp, pline, msg);
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	}
 	struct kJanssonVar *json = (struct kJanssonVar *)sfp[1].asObject;
 	json_array_append(ja, json->obj);
@@ -412,7 +412,7 @@ static KMETHOD JsonArray_get(KonohaContext *kctx, KonohaStack *sfp)
 #define _Im kMethod_Immutable
 #define _F(F)   (intptr_t)(F)
 
-static kbool_t jansson_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t jansson_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	KRequirePackage("konoha.float", trace);
 	KDEFINE_CLASS JsonDef = {
@@ -459,7 +459,7 @@ static kbool_t jansson_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc
 	return true;
 }
 
-static kbool_t jansson_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t jansson_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -468,8 +468,8 @@ KDEFINE_PACKAGE* jansson_init(void)
 {
 	static KDEFINE_PACKAGE d = {
 		KPACKNAME("jansson", "1.0"),
-		.initPackage    = jansson_initPackage,
-		.setupPackage   = jansson_setupPackage,
+		.PackupNameSpace    = jansson_PackupNameSpace,
+		.ExportNameSpace   = jansson_ExportNameSpace,
 	};
 	return &d;
 }

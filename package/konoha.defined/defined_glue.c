@@ -78,13 +78,13 @@ static KMETHOD Expression_Defined(KonohaContext *kctx, KonohaStack *sfp)
 		kTokenVar *pToken = tokenList->TokenVarItems[beginIdx+1];
 		if(IS_Array(pToken->subTokenList)) {
 			kExpr *expr = SUGAR new_UntypedCallStyleExpr(kctx, definedToken->resolvedSyntaxInfo, 1, definedToken);
-			filterArrayList(kctx, Stmt_nameSpace(stmt), pToken->subTokenList, 0, kArray_size(pToken->subTokenList));
+			filterArrayList(kctx, Stmt_ns(stmt), pToken->subTokenList, 0, kArray_size(pToken->subTokenList));
 			KReturn(SUGAR kStmt_addExprParam(kctx, stmt, expr, pToken->subTokenList, 0, kArray_size(pToken->subTokenList), 0/*isAllowEmpty*/));
 		}
 	}
 }
 
-static kbool_t defined_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t defined_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("defined"), 0, NULL, 0, Precedence_CStylePREUNARY, NULL, Expression_Defined, NULL, NULL, TypeCheck_Defined, },
@@ -94,7 +94,7 @@ static kbool_t defined_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc
 	return true;
 }
 
-static kbool_t defined_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t defined_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -104,8 +104,8 @@ KDEFINE_PACKAGE* defined_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "konoha", "1.0");
-	d.initPackage    = defined_initPackage;
-	d.setupPackage   = defined_setupPackage;
+	d.PackupNameSpace    = defined_PackupNameSpace;
+	d.ExportNameSpace   = defined_ExportNameSpace;
 	return &d;
 }
 

@@ -48,7 +48,7 @@ static KMETHOD Expression_new(KonohaContext *kctx, KonohaStack *sfp)
 	if(beginIdx + 1 < endIdx) {
 		kTokenVar *newToken = tokenList->TokenVarItems[beginIdx];
 		KonohaClass *foundClass = NULL;
-		kNameSpace *ns = Stmt_nameSpace(stmt);
+		kNameSpace *ns = Stmt_ns(stmt);
 		int nextIdx = SUGAR TokenUtils_parseTypePattern(kctx, ns, tokenList, beginIdx + 1, endIdx, &foundClass);
 		if((size_t)nextIdx < kArray_size(tokenList)) {
 			kToken *nextTokenAfterClassName = tokenList->TokenItems[nextIdx];
@@ -103,13 +103,13 @@ static kbool_t new_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceInfo 
 
 // --------------------------------------------------------------------------
 
-static kbool_t new_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t new_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	new_defineSyntax(kctx, ns, trace);
 	return true;
 }
 
-static kbool_t new_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t new_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -118,8 +118,8 @@ KDEFINE_PACKAGE* new_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "new", "1.0");
-	d.initPackage    = new_initPackage;
-	d.setupPackage   = new_setupPackage;
+	d.PackupNameSpace    = new_PackupNameSpace;
+	d.ExportNameSpace   = new_ExportNameSpace;
 	return &d;
 }
 

@@ -31,6 +31,14 @@ extern "C"{
 
 #define makeStringConstValue(kctx, text) new_ConstValueExpr(kctx, TY_String, UPCAST(text))
 
+static kExpr *CreateImportCall(KonohaContext *kctx, SugarSyntaxVar *syn, kToken *tkImport, kNameSpace *ns, kString *pkgname)
+{
+	kExpr *ePKG = makeStringConstValue(kctx, pkgname);
+	kExpr *expr = SUGAR new_UntypedCallStyleExpr(kctx, syn, 3,
+			tkImport, new_ConstValueExpr(kctx, O_typeId(ns), UPCAST(ns)), ePKG);
+	return expr;
+}
+
 static KMETHOD Statement_import(KonohaContext *kctx, KonohaStack *sfp)
 {
 	int ret = false;
@@ -39,20 +47,26 @@ static KMETHOD Statement_import(KonohaContext *kctx, KonohaStack *sfp)
 	if(tokenList == NULL) {
 		KReturnUnboxValue(false);
 	}
-	kNameSpace *ns = Stmt_nameSpace(stmt);
+	kNameSpace *ns = Stmt_ns(stmt);
 	SugarSyntaxVar *syn = (SugarSyntaxVar *) SYN_(ns, KW_ExprMethodCall);
 	kExpr *expr;
 	kTokenVar *tkImport = /*G*/new_(TokenVar, 0, OnGcStack);
 	tkImport->resolvedSymbol = MN_("import");
 	if(IS_Token(tokenList)) {
-		/* case : import("konoha.import"); */
 		kTokenArray *list = ((kToken *) tokenList)->subTokenList;
-		if (kArray_size(list) == 1) {
+		if(IS_String(list)) {
+			/* case: import cstyle; */
+			kString *pkgname = (kString *) list;
+			expr = CreateImportCall(kctx, syn, tkImport, ns, pkgname);
+		}
+		else if(kArray_size(list) == 1) {
+			/* case : import("konoha.import"); */
 			kExpr *param0 = makeStringConstValue(kctx, list->TokenItems[0]->text);
 			expr = SUGAR new_UntypedCallStyleExpr(kctx, syn, 3,
 					tkImport, new_ConstValueExpr(kctx, O_typeId(ns), UPCAST(ns)), param0);
 		}
-		else if (kArray_size(list) == 2) {
+		else if(kArray_size(list) == 2) {
+			/* case : import("konoha.import", "import"); */
 			kExpr *param0 = makeStringConstValue(kctx, list->TokenItems[0]->text);
 			kExpr *param1 = makeStringConstValue(kctx, list->TokenItems[1]->text);
 			expr = SUGAR new_UntypedCallStyleExpr(kctx, syn, 4,
@@ -85,12 +99,10 @@ static KMETHOD Statement_import(KonohaContext *kctx, KonohaStack *sfp)
 		KLIB Kwb_write(kctx, &wb, S_text(name), S_size(name));
 
 		kString *pkgname = KLIB new_kString(kctx, OnGcStack, KLIB Kwb_top(kctx, &wb, 1), Kwb_bytesize(&wb), 0);
-		kExpr *ePKG = makeStringConstValue(kctx, pkgname);
-		expr = SUGAR new_UntypedCallStyleExpr(kctx, syn, 3, tkImport, new_ConstValueExpr(kctx, O_typeId(ns), UPCAST(ns)), ePKG);
+		expr = CreateImportCall(kctx, syn, tkImport, ns, pkgname);
 	}
-
 	KLIB kObject_setObject(kctx, stmt, KW_ExprPattern, TY_Expr, expr);
-	ret = SUGAR kStmt_tyCheckByName(kctx, stmt, KW_ExprPattern, gma, TY_void, TypeCheckPolicy_ALLOWVOID);
+	ret = SUGAR kStmt_TypeCheckByName(kctx, stmt, KW_ExprPattern, gma, TY_void, TypeCheckPolicy_ALLOWVOID);
 	if(ret) {
 		kStmt_typed(stmt, EXPR);
 	}
@@ -99,7 +111,7 @@ static KMETHOD Statement_import(KonohaContext *kctx, KonohaStack *sfp)
 
 // --------------------------------------------------------------------------
 
-static kbool_t import_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t import_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	KDEFINE_SYNTAX SYNTAX[] = {
 		{ SYM_("import"), 0, "\"import\" $Token $Token* [ \".*\"] ", 0, 0, NULL, NULL, Statement_import, NULL, NULL, },
@@ -109,7 +121,7 @@ static kbool_t import_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc,
 	return true;
 }
 
-static kbool_t import_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t import_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -118,8 +130,8 @@ KDEFINE_PACKAGE* import_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "import", "1.0");
-	d.initPackage    = import_initPackage;
-	d.setupPackage   = import_setupPackage;
+	d.PackupNameSpace    = import_PackupNameSpace;
+	d.ExportNameSpace   = import_ExportNameSpace;
 	return &d;
 }
 

@@ -61,7 +61,7 @@ static KMETHOD Object_as(KonohaContext *kctx, KonohaStack *sfp)
 // void NameSpace_AllowImplicitCoercion(boolean t)
 static KMETHOD NameSpace_AllowImplicitCoercion(KonohaContext *kctx, KonohaStack *sfp)
 {
-	kNameSpaceVar *ns = (kNameSpaceVar*)sfp[0].asNameSpace;
+	kNameSpaceVar *ns = (kNameSpaceVar *)sfp[0].asNameSpace;
 	kNameSpace_Set(ImplicitCoercion, ns, sfp[1].boolValue);
 }
 
@@ -99,7 +99,7 @@ static KMETHOD TypeCheck_InstanceOf(KonohaContext *kctx, KonohaStack *sfp)
 			kbool_t staticSubType = (selfClass == targetClass || selfClass->isSubType(kctx, selfClass, targetClass));
 			KReturn(SUGAR kExpr_setUnboxConstValue(kctx, expr, TY_boolean, staticSubType));
 		}
-		kNameSpace *ns = Stmt_nameSpace(stmt);
+		kNameSpace *ns = Stmt_ns(stmt);
 		kMethod *mtd = KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, ns, TY_Object, MN_("<:"), 1);
 		DBG_ASSERT(mtd != NULL);
 		KFieldSet(expr->cons, expr->cons->MethodItems[0], mtd);
@@ -121,7 +121,7 @@ static KMETHOD TypeCheck_as(KonohaContext *kctx, KonohaStack *sfp)
 			KReturn(selfExpr);
 		}
 		if(selfClass->isSubType(kctx, targetClass, selfClass)) {
-			kNameSpace *ns = Stmt_nameSpace(stmt);
+			kNameSpace *ns = Stmt_ns(stmt);
 			kMethod *mtd = KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, ns, TY_Object, MN_("as"), 0);
 			DBG_ASSERT(mtd != NULL);
 			KReturn(SUGAR kStmtExpr_TypeCheckCallParam(kctx, stmt, expr, mtd, gma, targetClass->typeId));
@@ -141,7 +141,7 @@ static KMETHOD TypeCheck_to(KonohaContext *kctx, KonohaStack *sfp)
 			kStmtExpr_printMessage(kctx, stmt, selfExpr, InfoTag, "no need: %s to %s", TY_t(selfExpr->ty), TY_t(targetExpr->ty));
 			KReturn(selfExpr);
 		}
-		kNameSpace *ns = Stmt_nameSpace(stmt);
+		kNameSpace *ns = Stmt_ns(stmt);
 		kMethod *mtd = KLIB kNameSpace_GetCoercionMethodNULL(kctx, ns, selfExpr->ty, targetExpr->ty);
 		if(mtd == NULL) {
 			mtd = KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, ns, selfExpr->ty, MN_("to"), 0);
@@ -169,7 +169,7 @@ static kbool_t subtype_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceI
 
 // --------------------------------------------------------------------------
 
-static kbool_t object_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t object_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 //	KRequirePackage("konoha.subtype", trace);
 	KDEFINE_INT_CONST ClassData[] = {   // add Object as available
@@ -182,7 +182,7 @@ static kbool_t object_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc,
 	return true;
 }
 
-static kbool_t object_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t object_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -193,8 +193,8 @@ KDEFINE_PACKAGE* object_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "konoha", "1.0");
-	d.initPackage    = object_initPackage;
-	d.setupPackage   = object_setupPackage;
+	d.PackupNameSpace    = object_PackupNameSpace;
+	d.ExportNameSpace   = object_ExportNameSpace;
 	return &d;
 }
 

@@ -988,9 +988,9 @@ static void defineDefaultKeywordSymbol(KonohaContext *kctx)
 		"", "$Expr", "$Symbol", "$Text", "$Number", "$Type",
 		"()", "[]", "{}", "$Block", "$Param", "$TypeDecl", "$MethodDecl", "$Token",
 		".", "/", "%", "*", "+", "-", "<", "<=", ">", ">=", "==", "!=",
-		"&&", "||", "!", "=", ",", "$", ":", /*"@",*/
+		"&&", "||", "!", "=", ",", "$", ":", ";", /*"@",*/
 		"true", "false", "if", "else", "return", // syn
-		"new",
+		"new", "void"
 	};
 	for(i = 0; i < sizeof(keywords) / sizeof(const char *); i++) {
 		ksymbolSPOL(keywords[i], strlen(keywords[i]), StringPolicy_TEXT|StringPolicy_ASCII, SYM_NEWID);
@@ -1086,7 +1086,7 @@ static void KonohaRuntime_init(KonohaContext *kctx, KonohaContextVar *ctx)
 //	KObjectVisitor *visitor = (KObjectVisitor *) thunk;
 //	KonohaPackage *pack = (KonohaPackage *)p->unboxValue;
 //	BEGIN_REFTRACE(1);
-//	KREFTRACEn(pack->packageNameSpace_OnGlobalConstList);
+//	KREFTRACEn(pack->packageNS_onGlobalConstList);
 //	END_REFTRACE();
 //}
 

@@ -146,7 +146,7 @@ static KMETHOD Statement_dsh(KonohaContext *kctx, KonohaStack *sfp)
 
 	//TODO: generate eval("cmd") syntax
 
-	kNameSpace *ns = Stmt_nameSpace(stmt);
+	kNameSpace *ns = Stmt_ns(stmt);
 	SugarSyntaxVar *syn = (SugarSyntaxVar *) SYN_(ns, KW_ExprMethodCall);
 	kTokenVar *callToken = new_(TokenVar, 0, OnGcStack);
 	kExpr *callExpr = new_ConstValueExpr(kctx, TY_String, UPCAST(cmd));
@@ -155,7 +155,7 @@ static KMETHOD Statement_dsh(KonohaContext *kctx, KonohaStack *sfp)
 	kExpr *expr = SUGAR new_UntypedCallStyleExpr(kctx, syn, 3, callToken,
 			new_UnboxConstValueExpr(kctx, KLIB kNameSpace_GetClass(kctx, ns, cname, strlen(cname), NULL)->typeId, 0), callExpr);
 	KLIB kObject_setObject(kctx, stmt, KW_ExprPattern, TY_Expr, expr);
-	kbool_t ret = SUGAR kStmt_tyCheckByName(kctx, stmt, KW_ExprPattern, gma, TY_int, 0);
+	kbool_t ret = SUGAR kStmt_TypeCheckByName(kctx, stmt, KW_ExprPattern, gma, TY_int, 0);
 	if(ret) {
 		kStmt_typed(stmt, EXPR);
 	}
@@ -243,13 +243,13 @@ static kbool_t shell_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceInf
 	return true;
 }
 
-static kbool_t shell_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t shell_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	shell_defineSyntax(kctx, ns, trace);
 	return true;
 }
 
-static kbool_t shell_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t shell_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -258,8 +258,8 @@ KDEFINE_PACKAGE* shell_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "dshell", "1.0");
-	d.initPackage    = shell_initPackage;
-	d.setupPackage   = shell_setupPackage;
+	d.PackupNameSpace    = shell_PackupNameSpace;
+	d.ExportNameSpace   = shell_ExportNameSpace;
 	return &d;
 }
 

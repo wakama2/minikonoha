@@ -24,7 +24,6 @@
 
 #include "minikonoha/minikonoha.h"
 #include "minikonoha/klib.h"
-#include "minikonoha/gc.h"
 #include "minikonoha/local.h"
 
 #include "protomap.h"
@@ -236,6 +235,63 @@ void konoha_close(KonohaContext* konoha)
 }
 
 // -------------------------------------------------------------------------
+// Default Platform Module API
+
+static void DefaultEventHandler(KonohaContext *kctx)
+{
+}
+static kbool_t DefaultEmitEvent(KonohaContext *kctx, struct JsonBuf *json, KTraceInfo *trace)
+{
+	return false;
+}
+static void DefaultDispatchEvent(KonohaContext *kctx, kbool_t (*consume)(KonohaContext *kctx, struct JsonBuf *, KTraceInfo *), KTraceInfo *trace)
+{
+}
+
+static void DefaultTraceLog(KonohaContext *kctx, KTraceInfo *trace, int logkey, logconf_t *logconf, ...)
+{
+
+}
+
+// -------------------------------------------------------------------------
+/* Diagnosis */
+
+static kbool_t CheckStaticRisk(KonohaContext *kctx, const char *keyword, size_t keylen, kfileline_t uline)
+{
+	return true; // OK
+}
+
+static void CheckDynamicRisk(KonohaContext *kctx, const char *keyword, size_t keylen, KTraceInfo *trace)
+{
+}
+
+static int DiagnosisSoftwareProcess(KonohaContext *kctx, kfileline_t uline, KTraceInfo *trace)
+{
+	return 0;
+}
+
+static int DiagnosisSystemResource(KonohaContext *kctx, KTraceInfo *trace)
+{
+	return 0;
+}
+
+static int DiagnosisFileSystem(KonohaContext *kctx, const char *path, size_t pathlen, KTraceInfo *trace)
+{
+	return 0; // unknown
+}
+
+static int DiagnosisNetworking(KonohaContext *kctx, const char *path, size_t pathlen, int port, KTraceInfo *trace)
+{
+	return 0; // unknown
+}
+
+static int DiagnosisSystemError(KonohaContext *kctx, int userFault)
+{
+	return userFault | SoftwareFault | SystemFault;
+}
+
+
+// -------------------------------------------------------------------------
 /* Konoha C API */
 
 kbool_t KonohaFactory_LoadPlatformModule(KonohaFactory *factory, const char *name, ModuleType option)
@@ -269,6 +325,14 @@ void KonohaFactory_CheckVirtualMachine(KonohaFactory *factory);  // For compatib
 
 static void KonohaFactory_Check(KonohaFactory *factory)
 {
+	if(factory->LoggerInfo == NULL) {
+		factory->TraceDataLog = DefaultTraceLog;  // for safety
+	}
+	if(factory->VirtualMachineInfo == NULL) {
+		const char *mod = factory->getenv_i("KONOHA_VM");
+		if(mod == NULL) mod = "MiniVM";
+		KonohaFactory_LoadPlatformModule(factory, mod, ReleaseModule);
+	}
 	if(factory->GCInfo == NULL) {
 		const char *mod = factory->getenv_i("KONOHA_GC");
 		if(mod == NULL) mod = "BitmapGenGC";  // default
@@ -279,10 +343,28 @@ static void KonohaFactory_Check(KonohaFactory *factory)
 		if(mod == NULL) mod = "IConv";        // default
 		KonohaFactory_LoadPlatformModule(factory, mod, ReleaseModule);
 	}
-	if(factory->VirtualMachineInfo == NULL) {
-		const char *mod = factory->getenv_i("KONOHA_VM");
-		if(mod == NULL) mod = "MiniVM";
+	if(factory->JsonDataInfo == NULL) {
+		const char *mod = factory->getenv_i("KONOHA_JSON");
+		if(mod == NULL) mod = "Json";
 		KonohaFactory_LoadPlatformModule(factory, mod, ReleaseModule);
+	}
+	if(factory->EventInfo == NULL) {
+		factory->StartEventHandler = DefaultEventHandler;
+		factory->StopEventHandler  = DefaultEventHandler;
+		factory->EnterEventContext = DefaultEventHandler;
+		factory->ExitEventContext  = DefaultEventHandler;
+		factory->EmitEvent         = DefaultEmitEvent;
+		factory->DispatchEvent     = DefaultDispatchEvent;
+		factory->WaitEvent         = NULL;  // check NULL
+	}
+	if(factory->DiagnosisInfo == NULL) {
+		factory->CheckStaticRisk         = CheckStaticRisk;
+		factory->CheckDynamicRisk        = CheckDynamicRisk;
+		factory->DiagnosisSystemError    = DiagnosisSystemError;
+		factory->DiagnosisSoftwareProcess = DiagnosisSoftwareProcess;
+		factory->DiagnosisSystemResource = DiagnosisSystemResource;
+		factory->DiagnosisFileSystem     = DiagnosisFileSystem;
+		factory->DiagnosisNetworking     = DiagnosisNetworking;
 	}
 }
 
@@ -297,7 +379,7 @@ KonohaContext* KonohaFactory_CreateKonoha(KonohaFactory *factory)
 
 int Konoha_Destroy(KonohaContext *kctx)
 {
-	KonohaFactory *platapi = (KonohaFactory*)kctx->platApi;
+	KonohaFactory *platapi = (KonohaFactory *)kctx->platApi;
 	int exitStatus = platapi->exitStatus;
 	KonohaContext_free(kctx, (KonohaContextVar *)kctx);
 	platapi->free_i(platapi);

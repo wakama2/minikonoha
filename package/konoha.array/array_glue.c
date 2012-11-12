@@ -170,7 +170,7 @@ static KMETHOD Array_pop(KonohaContext *kctx, KonohaStack *sfp)
 {
 	kArray *a = sfp[0].asArray;
 	if(kArray_size(a) == 0)
-		KReturnDefaultObjectValue();
+		KReturnDefaultValue();
 	size_t n = kArray_size(a) - 1;
 	if(kArray_isUnboxData(a)) {
 		uintptr_t v = a->unboxItems[n];
@@ -587,7 +587,7 @@ static KMETHOD TypeCheck_Bracket(KonohaContext *kctx, KonohaStack *sfp)
 	if(requestClass == NULL) {
 		requestClass = (paramType == TY_var) ? CT_Array : CT_p0(kctx, CT_Array, paramType);
 	}
-	kMethod *mtd = KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, Stmt_nameSpace(stmt), TY_Array, MN_("newList"), -1);
+	kMethod *mtd = KLIB kNameSpace_GetMethodByParamSizeNULL(kctx, Stmt_ns(stmt), TY_Array, MN_("newList"), -1);
 	DBG_ASSERT(mtd != NULL);
 	KFieldSet(expr, expr->cons->MethodItems[0], mtd);
 	KFieldSet(expr, expr->cons->ExprItems[1], SUGAR kExpr_setVariable(kctx, NULL, gma, TEXPR_NEW, requestClass->typeId, 0));
@@ -598,7 +598,7 @@ static KMETHOD Expression_Bracket(KonohaContext *kctx, KonohaStack *sfp)
 {
 	VAR_Expression(stmt, tokenList, beginIdx, operatorIdx, endIdx);
 	KonohaClass *genericsClass = NULL;
-	kNameSpace *ns = Stmt_nameSpace(stmt);
+	kNameSpace *ns = Stmt_ns(stmt);
 	int nextIdx = SUGAR TokenUtils_parseTypePattern(kctx, ns, tokenList, beginIdx, endIdx, &genericsClass);
 	if(nextIdx != -1) {  // to avoid Func[T]
 		KReturn(SUGAR kStmt_parseOperatorExpr(kctx, stmt, tokenList->TokenItems[beginIdx]->resolvedSyntaxInfo, tokenList, beginIdx, beginIdx, endIdx));
@@ -640,7 +640,7 @@ static KMETHOD Expression_Bracket(KonohaContext *kctx, KonohaStack *sfp)
 			kTokenVar *tkN = /*G*/new_(TokenVar, 0, OnGcStack);
 			tkN->resolvedSymbol= MN_toGETTER(0);
 			tkN->uline = currentToken->uline;
-			SugarSyntax *syn = SYN_(Stmt_nameSpace(stmt), KW_ExprMethodCall);
+			SugarSyntax *syn = SYN_(Stmt_ns(stmt), KW_ExprMethodCall);
 			leftExpr  = SUGAR new_UntypedCallStyleExpr(kctx, syn, 2, tkN, leftExpr);
 			leftExpr = SUGAR kStmt_addExprParam(kctx, stmt, leftExpr, currentToken->subTokenList, 0, kArray_size(currentToken->subTokenList), "[");
 		}
@@ -658,14 +658,14 @@ static kbool_t array_defineSyntax(KonohaContext *kctx, kNameSpace *ns, KTraceInf
 	return true;
 }
 
-static kbool_t array_initPackage(KonohaContext *kctx, kNameSpace *ns, int argc, const char**args, KTraceInfo *trace)
+static kbool_t array_PackupNameSpace(KonohaContext *kctx, kNameSpace *ns, int option, KTraceInfo *trace)
 {
 	array_defineMethod(kctx, ns, trace);
 	array_defineSyntax(kctx, ns, trace);
 	return true;
 }
 
-static kbool_t array_setupPackage(KonohaContext *kctx, kNameSpace *ns, isFirstTime_t isFirstTime, KTraceInfo *trace)
+static kbool_t array_ExportNameSpace(KonohaContext *kctx, kNameSpace *ns, kNameSpace *exportNS, int option, KTraceInfo *trace)
 {
 	return true;
 }
@@ -674,8 +674,8 @@ KDEFINE_PACKAGE* array_init(void)
 {
 	static KDEFINE_PACKAGE d = {0};
 	KSetPackageName(d, "array", "1.0");
-	d.initPackage    = array_initPackage;
-	d.setupPackage   = array_setupPackage;
+	d.PackupNameSpace    = array_PackupNameSpace;
+	d.ExportNameSpace   = array_ExportNameSpace;
 	return &d;
 }
 

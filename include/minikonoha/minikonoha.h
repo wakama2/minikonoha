@@ -381,7 +381,7 @@ typedef enum {
 	SoftwareFault      =  (1<<2),  /* programmer's mistake */
 	UserFault          =  (1<<3),  /* user input, data mistake */
 	ExternalFault      =  (1<<4),  /* networking or remote services */
-	UnknownFault       =  (1<<5),  /* if you can distingish fault above */
+//	UnknownFault       =  (1<<5),  /* if you can distingish fault above */
 	// LogPoint
 	PeriodicPoint      =  (1<<6),  /* sampling */
 	ResponseCheckPoint =  (1<<7),  /* log point to expect a long term action time*/
@@ -391,7 +391,10 @@ typedef enum {
 	PrivacyCaution     =  (1<<10), /* including privacy information */
 	// Internal Use
 	SystemError        =  (1<<11),
-	HasEvidence        =  (1<<12),
+	NotSystemFault     =  (1<<12),
+	NotSoftwareFault   =  (1<<13),
+	NotUserFault       =  (1<<14),
+	NotExternalFault   =  (1<<15),
 	LOGPOOL_INIT       =  (1<<17)
 } logpolicy_t;
 
@@ -447,6 +450,12 @@ typedef enum {
     KJSON_LONG
 } KJSONTYPE;
 
+typedef enum {
+	SafePoint_NOWAIT = 0,
+	SafePoint_GC     = 1,
+	SafePoint_Event  = (1 << 2)
+} SafePoint;
+
 struct KObjectVisitor *visitor;
 
 
@@ -489,7 +498,10 @@ typedef struct kGammaVar                kGammaVar;
 struct KonohaFactory {
 	// settings
 	const char *name;
-	size_t  stacksize;
+	size_t       stacksize;
+	volatile int safePointFlag;
+	int          verbose;
+	int          exitStatus;
 
 	/* memory allocation / deallocation */
 	void *(*malloc_i)(size_t size);
@@ -547,23 +559,28 @@ struct KonohaFactory {
 	char*  (*readline_i)(const char *prompt);
 	int    (*add_history_i)(const char *);
 
-	// logging, trace
-	int   exitStatus;
-	const char *LOGGER_NAME;
+	/* Logging API */
+	KModuleInfo *LoggerInfo;
 	void  (*syslog_i)(int priority, const char *message, ...) __PRINTFMT(2, 3);
 	void  (*vsyslog_i)(int priority, const char *message, va_list args);
-	void   *logger;  // logger handler
-	void  (*traceDataLog)(KonohaContext *kctx, KTraceInfo *trace, int, logconf_t *, ...);
-	void  (*diagnosis)(void);
+	void  (*TraceDataLog)(KonohaContext *kctx, KTraceInfo *trace, int, logconf_t *, ...);
 
-	int (*diagnosisFaultType)(KonohaContext *, int fault, KTraceInfo *);
+	/* Diagnosis API */
+	KModuleInfo *DiagnosisInfo;
+	kbool_t (*CheckStaticRisk)(KonohaContext *, const char *keyword, size_t keylen, kfileline_t uline);
+	void    (*CheckDynamicRisk)(KonohaContext *, const char *keyword, size_t keylen, KTraceInfo *);
+	int (*DiagnosisSoftwareProcess)(KonohaContext *, kfileline_t uline, KTraceInfo *);
+	int (*DiagnosisSystemError)(KonohaContext *, int fault);
+	int (*DiagnosisSystemResource)(KonohaContext *, KTraceInfo *);
+	int (*DiagnosisFileSystem)(KonohaContext *, const char *path, size_t pathlen, KTraceInfo *);
+	int (*DiagnosisNetworking)(KonohaContext *, const char *path, size_t pathlen, int port, KTraceInfo *);
 
 	/* Console API */
 	KModuleInfo *ConsoleInfo;
-	void (*ReportUserMessage)(KonohaContext *, kinfotag_t, kfileline_t pline, const char *, int isNewLine);
-	void (*ReportCompilerMessage)(KonohaContext *, kinfotag_t, kfileline_t pline, const char *);
-	void (*ReportCaughtException)(KonohaContext *, const char *, int fault, const char *, struct KonohaValueVar *bottomStack, struct KonohaValueVar *topStack);
-	void (*ReportDebugMessage)(const char *file, const char *func, int line, const char *fmt, ...) __PRINTFMT(4, 5);
+	void  (*ReportUserMessage)(KonohaContext *, kinfotag_t, kfileline_t pline, const char *, int isNewLine);
+	void  (*ReportCompilerMessage)(KonohaContext *, kinfotag_t, kfileline_t pline, const char *);
+	void  (*ReportCaughtException)(KonohaContext *, const char *, int fault, const char *, struct KonohaValueVar *bottomStack, struct KonohaValueVar *topStack);
+	void  (*ReportDebugMessage)(const char *file, const char *func, int line, const char *fmt, ...) __PRINTFMT(4, 5);
 	int   (*InputUserApproval)(KonohaContext *, const char *message, const char *yes, const char *no, int defval);
 	char* (*InputUserText)(KonohaContext *, const char *message, int flag);
 	char* (*InputUserPassword)(KonohaContext *, const char *message);
@@ -584,8 +601,14 @@ struct KonohaFactory {
 
 	/* Event Handler API */
 	KModuleInfo *EventInfo;
-	void (*AddEventListener)(KonohaContext *, const char *name, void *thunk, void (*func)(KonohaContext *, void *thunk, struct JsonBuf*, KTraceInfo *));
-	void (*ScheduleEvent)(KonohaContext *, KTraceInfo *trace);
+	struct EventContext *eventContext;
+	void (*StartEventHandler)(KonohaContext *kctx);
+	void (*StopEventHandler)(KonohaContext *kctx);
+	void (*EnterEventContext)(KonohaContext *kctx);
+	void (*ExitEventContext)(KonohaContext *kctx);
+	kbool_t (*EmitEvent)(KonohaContext *kctx, struct JsonBuf *json, KTraceInfo *);
+	void (*DispatchEvent)(KonohaContext *kctx, kbool_t (*consume)(KonohaContext *kctx, struct JsonBuf *, KTraceInfo *), KTraceInfo *);
+	void (*WaitEvent)(KonohaContext *kctx, kbool_t (*consume)(KonohaContext *kctx, struct JsonBuf *, KTraceInfo *), KTraceInfo *);
 
 	// I18N Module
 	KModuleInfo *I18NInfo;
@@ -623,7 +646,6 @@ struct KonohaFactory {
 	const char* (*JsonToNewText)(KonohaContext *, struct JsonBuf *);
 	size_t      (*DoJsonEach)(KonohaContext *, struct JsonBuf *, void *thunk, void (*doEach)(KonohaContext *, const char *, struct JsonBuf *, void *));
 
-	//	void        (*WriteJsonToBuffer)(KonohaContext *, KGrowingBuffer *, struct JsonBuf *);
 	kbool_t     (*RetrieveJsonKeyValue)(KonohaContext *, struct JsonBuf *, const char *key, size_t keylen, struct JsonBuf *newbuf);
 	kbool_t     (*SetJsonKeyValue)(KonohaContext *, struct JsonBuf *, const char *key, size_t keylen, struct JsonBuf *otherbuf);
 	kbool_t     (*SetJsonValue)(KonohaContext *, struct JsonBuf *, const char *key, size_t keylen, KJSONTYPE, ...);
@@ -633,8 +655,8 @@ struct KonohaFactory {
 	double      (*GetJsonFloat)(KonohaContext *kctx, struct JsonBuf *jsonbuf, const char *key, size_t keylen_or_zero, double defval);
 	const char* (*GetJsonText)(KonohaContext *kctx, struct JsonBuf *jsonbuf, const char *key, size_t keylen_or_zero, const char *defval);
 	size_t      (*GetJsonSize)(KonohaContext *kctx, struct JsonBuf *jsonbuf);
-	kbool_t     (*RetrieveJsonArrayIndex)(KonohaContext *kctx, struct JsonBuf *jsonbuf, size_t index, struct JsonBuf *otherbuf);
-	kbool_t     (*SetJsonArrayIndex)(KonohaContext *kctx, struct JsonBuf *jsonbuf, size_t index, struct JsonBuf *otherbuf);
+	kbool_t     (*RetrieveJsonArrayAt)(KonohaContext *kctx, struct JsonBuf *jsonbuf, size_t index, struct JsonBuf *otherbuf);
+	kbool_t     (*SetJsonArrayAt)(KonohaContext *kctx, struct JsonBuf *jsonbuf, size_t index, struct JsonBuf *otherbuf);
 	kbool_t     (*AppendJsonArray)(KonohaContext *kctx, struct JsonBuf *jsonbuf, struct JsonBuf *otherbuf);
 
 };
@@ -654,21 +676,21 @@ struct KonohaFactory {
 #define KTraceErrorPoint(TRACE, POLICY, APINAME, ...)    do {\
 		logconf_t _logconf = {(logpolicy_t)(isRecord|LOGPOOL_INIT|POLICY)};\
 		if(trace != NULL && TFLAG_is(int, _logconf.policy, isRecord)) { \
-			PLATAPI traceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
+			PLATAPI TraceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
 		}\
 	} while(0)
 
 #define KTraceChangeSystemPoint(TRACE, APINAME, ...)    do {\
 		logconf_t _logconf = {(logpolicy_t)(isRecord|LOGPOOL_INIT|SystemChangePoint)};\
 		if(trace != NULL && TFLAG_is(int, _logconf.policy, isRecord)) { \
-			PLATAPI traceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
+			PLATAPI TraceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
 		}\
 	} while(0)
 
 #define KTraceApi(TRACE, POLICY, APINAME, ...)    do {\
 		static logconf_t _logconf = {(logpolicy_t)(isRecord|LOGPOOL_INIT|POLICY)};\
 		if(trace != NULL && TFLAG_is(int, _logconf.policy, isRecord)) {\
-			PLATAPI traceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
+			PLATAPI TraceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
 		}\
 	} while(0)
 
@@ -676,10 +698,10 @@ struct KonohaFactory {
 		static logconf_t _logconf = {(logpolicy_t)(isRecord|LOGPOOL_INIT|POLICY)};\
 		if(trace != NULL && TFLAG_is(int, _logconf.policy, isRecord)) {\
 			uint64_t _startTime = PLATAPI getTimeMilliSecond();\
-			PLATAPI traceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
+			PLATAPI TraceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), ## __VA_ARGS__, LOG_END);\
 			STMT;\
 			uint64_t _endTime = PLATAPI getTimeMilliSecond();\
-			PLATAPI traceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), LogUint("ElapsedTime", (_endTime - _startTime)), ## __VA_ARGS__, LOG_END);\
+			PLATAPI TraceDataLog(kctx, TRACE, 0/*LOGKEY*/, &_logconf, LogText("Api", APINAME), LogUint("ElapsedTime", (_endTime - _startTime)), ## __VA_ARGS__, LOG_END);\
 			/*counter++;*/\
 		}else { \
 			STMT;\
@@ -1457,7 +1479,7 @@ struct kNameSpaceVar {
 
 #define kNameSpace_TypeInference                     ((kshortflag_t)(1<<2))
 #define kNameSpace_ImplicitField                     ((kshortflag_t)(1<<3))
-#define kNameSpace_TransparentGlobalVariable         ((kshortflag_t)(1<<4))
+#define kNameSpace_ImplicitGlobalVariable         ((kshortflag_t)(1<<4))
 
 #define kNameSpace_ImplicitCoercion                  ((kshortflag_t)(1<<5))
 
@@ -1525,40 +1547,36 @@ struct _kSystem {
 /* ----------------------------------------------------------------------- */
 /* Package */
 
-#define K_CHECKSUM 1
-
 #define KPACKNAME(N, V) \
-	.name = N, .version = V, .konoha_checksum = K_CHECKSUM, .konoha_revision = K_REVISION
-#define KSetPackageName(VAR, N, V) \
- 	do{ VAR.name = N; VAR.version = V; VAR.konoha_checksum = K_CHECKSUM; VAR.konoha_revision = K_REVISION; } while(0)
+	.name = N, .version = V, .konoha_checksum = K_DATE
+
+#define KSetPackageName(VAR, N, V) do{\
+	VAR.name = N; VAR.version = V; VAR.konoha_checksum = K_DATE;\
+} while(0)
 
 #define KPACKLIB(N, V) \
 	.libname = N, .libversion = V
-#define KSETPACKLIB(VAR, N, V) \
-	do{ VAR.libname = N; VAR.libversion = V; } while(0)
-
-typedef enum {  Nope, FirstTime } isFirstTime_t;
+#define KSETPACKLIB(VAR, N, V) do{\
+	VAR.libname = N; VAR.libversion = V;\
+} while(0)
 
 struct KonohaPackageHandlerVar {
-	int konoha_checksum;
+	long  konoha_checksum;
 	const char *name;
 	const char *version;
 	const char *libname;
 	const char *libversion;
-	const char *note;
-	kbool_t (*initPackage)     (KonohaContext *kctx, kNameSpace *, int, const char**, KTraceInfo *);
-	kbool_t (*setupPackage)    (KonohaContext *kctx, kNameSpace *, isFirstTime_t, KTraceInfo *);
-	kbool_t (*loadPlatformApi) (KonohaFactory *platapi);
-	const char *konoha_revision;
+	kbool_t (*PackupNameSpace)    (KonohaContext *kctx, kNameSpace *, int, KTraceInfo *);
+	kbool_t (*ExportNameSpace)    (KonohaContext *kctx, kNameSpace *, kNameSpace *, int, KTraceInfo *);
 };
 
 typedef struct KonohaPackageVar KonohaPackage;
 
 struct KonohaPackageVar {
 	kpackageId_t                 packageId;
-	kNameSpace                  *packageNameSpace_OnGlobalConstList;
+	kNameSpace                  *packageNS_onGlobalConstList;
 	KonohaPackageHandler        *packageHandler;
-	kfileline_t                  kick_script;
+	kfileline_t                  kickout_script;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1582,16 +1600,7 @@ typedef struct KObjectVisitor {
 
 struct KonohaLibVar {
 
-//	/* Garbage Collection API */
-//	/* This Must be Going to PlatformApi */
-//	GcContext *(*KnewGcContext)(KonohaContext *kctx);
-//	void (*KdeleteGcContext)(GcContext *gc);
-//	void (*KscheduleGC)     (GcContext *gc);
-//	struct kObjectVar *(*KallocObject)(GcContext *gc, KonohaClass *klass);
-//	bool (*KisObject)   (GcContext *gc, void *ptr);
-//	void (*KvisitObject)(struct KObjectVisitor *visitor, struct kObjectVar *obj);
-//
-//	/* Event Handler API */
+	/* Event Handler API */
 	/* This Must Be Going To Factory */
 	void (*KscheduleEvent)  (KonohaContext *);
 
@@ -1641,7 +1650,6 @@ struct KonohaLibVar {
 	void            (*kObject_FreeField)(KonohaContext *kctx, kObjectVar *);
 	void            (*kObject_ReftraceField)(KonohaContext *kctx, kObject *, KObjectVisitor *);
 
-	//kbool_t         (*kObject_isManaged)(KonohaContext*, void *ptr);
 	kObject*        (*Knull)(KonohaContext*, KonohaClass *);
 	kObject*        (*kObject_getObject)(KonohaContext*, kAbstractObject *, ksymbol_t, kAbstractObject *);
 	void            (*kObject_setObject)(KonohaContext*, kAbstractObject *, ksymbol_t, ktype_t, kAbstractObject *);
@@ -1667,7 +1675,6 @@ struct KonohaLibVar {
 
 	kbool_t         (*KonohaRuntime_setModule)(KonohaContext*, int, struct KonohaModule *, KTraceInfo *);
 
-//	void (*kNameSpace_reftraceSugarExtension)(KonohaContext *, kNameSpace *, struct KObjectVisitor *visitor);
 	void (*kNameSpace_freeSugarExtension)(KonohaContext *, kNameSpaceVar *);
 
 	KonohaPackage*   (*kNameSpace_RequirePackage)(KonohaContext*, const char *, KTraceInfo *);
@@ -1695,6 +1702,7 @@ struct KonohaLibVar {
 	kbool_t          (*KonohaRuntime_tryCallMethod)(KonohaContext *, KonohaStack *);
 	void             (*KonohaRuntime_raise)(KonohaContext*, int symbol, int fault, kString *Nullable, KonohaStack *);
 	void             (*ReportScriptMessage)(KonohaContext *, KTraceInfo *, kinfotag_t, const char *fmt, ...);
+	int              (*DiagnosisFaultType)(KonohaContext *kctx, int fault, KTraceInfo *);
 };
 
 #define K_NULL            (kctx->share->constNull_OnGlobalConstList)
@@ -1731,7 +1739,8 @@ struct KonohaLibVar {
 #define MN_(T)                    KLIB Ksymbol(kctx, T, (sizeof(T)-1), StringPolicy_TEXT|StringPolicy_ASCII, _NEWID)
 #define MN_box                    MN_("box")
 
-#define MN_new                    37  /* @see KW_return + 1*/
+#define MN_new                    38  /* @see KW_return + 1*/
+#define KW_void                   39
 
 #define new_(C, A, STACK)                 (k##C *)(KLIB new_kObject(kctx, STACK, CT_##C, ((uintptr_t)A)))
 #define GcUnsafe                          NULL
@@ -1866,7 +1875,7 @@ typedef struct {
 	return; \
 } while(0)
 
-#define KReturnDefaultObjectValue() do {\
+#define KReturnDefaultValue() do {\
 	return; \
 } while(0)
 
@@ -1951,8 +1960,6 @@ typedef struct {
 #endif
 
 ///* Konoha API */
-extern KonohaContext* konoha_open(const PlatformApi *);
-extern void konoha_close(KonohaContext* konoha);
 extern kbool_t Konoha_LoadScript(KonohaContext* konoha, const char *scriptfile);
 extern kbool_t Konoha_Eval(KonohaContext* konoha, const char *script, kfileline_t uline);
 extern kbool_t konoha_run(KonohaContext* konoha);  // TODO
@@ -1960,7 +1967,5 @@ extern kbool_t konoha_run(KonohaContext* konoha);  // TODO
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#include "gc.h"
 
 #endif /* MINIOKNOHA_H_ */
